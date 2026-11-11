@@ -1,0 +1,158 @@
+diff --git a/Swiftgram/SGSettingsUI/Sources/SGSettingsController.swift b/Swiftgram/SGSettingsUI/Sources/SGSettingsController.swift
+index b5b41d9f..9d999cf2 100644
+--- a/Swiftgram/SGSettingsUI/Sources/SGSettingsController.swift
++++ b/Swiftgram/SGSettingsUI/Sources/SGSettingsController.swift
+@@ -27,6 +27,7 @@ import UndoUI
+ private enum SGControllerSection: Int32, SGItemListSection {
+     case search
+     case trending
++    case ghost
+     case content
+     case tabs
+     case folders
+@@ -60,6 +61,9 @@ private enum SGBoolSetting: String {
+     case rememberLastFolder
+     case sendLargePhotos
+     case storyStealthMode
++    case ghostHideOnline
++    case ghostHideRead
++    case ghostHideTyping
+     case disableSwipeToRecordStory
+     case disableDeleteChatSwipeOption
+     case quickTranslateButton
+@@ -163,6 +167,13 @@ private func SGControllerEntries(presentationData: PresentationData, callListSet
+         id.increment(3)
+     }
+     
++    // MARK: Silent Gram
++    entries.append(.header(id: id.count, section: .ghost, text: "👻 РЕЖИМ ПРИЗРАКА", badge: nil))
++    entries.append(.toggle(id: id.count, section: .ghost, settingName: .ghostHideOnline, value: SGSimpleSettings.shared.ghostHideOnline, text: "Скрывать «в сети»", enabled: true))
++    entries.append(.toggle(id: id.count, section: .ghost, settingName: .ghostHideRead, value: SGSimpleSettings.shared.ghostHideRead, text: "Не отправлять «прочитано»", enabled: true))
++    entries.append(.toggle(id: id.count, section: .ghost, settingName: .ghostHideTyping, value: SGSimpleSettings.shared.ghostHideTyping, text: "Скрывать «печатает…»", enabled: true))
++    entries.append(.notice(id: id.count, section: .ghost, text: "Собеседники не увидят, что ты в сети, что ты печатаешь и что прочитал сообщения."))
++
+     if appConfiguration.sgWebSettings.global.canEditSettings {
+         entries.append(.disclosure(id: id.count, section: .content, link: .contentSettings, text: i18n("Settings.ContentSettings", lang)))
+     } else {
+@@ -415,6 +426,12 @@ public func sgSettingsController(context: AccountContext/*, focusOnItemTag: Int?
+             SGSimpleSettings.shared.sendLargePhotos = value
+         case .storyStealthMode:
+             SGSimpleSettings.shared.storyStealthMode = value
++        case .ghostHideOnline:
++            SGSimpleSettings.shared.ghostHideOnline = value
++        case .ghostHideRead:
++            SGSimpleSettings.shared.ghostHideRead = value
++        case .ghostHideTyping:
++            SGSimpleSettings.shared.ghostHideTyping = value
+         case .disableSwipeToRecordStory:
+             SGSimpleSettings.shared.disableSwipeToRecordStory = value
+         case .quickTranslateButton:
+diff --git a/Swiftgram/SGSimpleSettings/Sources/SimpleSettings.swift b/Swiftgram/SGSimpleSettings/Sources/SimpleSettings.swift
+index 6dfc4ec9..cd2bad8f 100644
+--- a/Swiftgram/SGSimpleSettings/Sources/SimpleSettings.swift
++++ b/Swiftgram/SGSimpleSettings/Sources/SimpleSettings.swift
+@@ -106,6 +106,9 @@ public class SGSimpleSettings {
+         case sendLargePhotos
+         case outgoingPhotoQuality
+         case storyStealthMode
++        case ghostHideOnline
++        case ghostHideRead
++        case ghostHideTyping
+         case canUseStealthMode
+         case disableSwipeToRecordStory
+         case quickTranslateButton
+@@ -268,6 +271,9 @@ public class SGSimpleSettings {
+         Keys.sendLargePhotos.rawValue: false,
+         Keys.outgoingPhotoQuality.rawValue: 70,
+         Keys.storyStealthMode.rawValue: false,
++        Keys.ghostHideOnline.rawValue: true,
++        Keys.ghostHideRead.rawValue: true,
++        Keys.ghostHideTyping.rawValue: true,
+         Keys.canUseStealthMode.rawValue: true,
+         Keys.disableSwipeToRecordStory.rawValue: false,
+         Keys.quickTranslateButton.rawValue: false,
+@@ -394,6 +400,16 @@ public class SGSimpleSettings {
+     
+     @UserDefault(key: Keys.storyStealthMode.rawValue)
+     public var storyStealthMode: Bool
++
++    // MARK: Silent Gram — режим призрака
++    @UserDefault(key: Keys.ghostHideOnline.rawValue)
++    public var ghostHideOnline: Bool
++
++    @UserDefault(key: Keys.ghostHideRead.rawValue)
++    public var ghostHideRead: Bool
++
++    @UserDefault(key: Keys.ghostHideTyping.rawValue)
++    public var ghostHideTyping: Bool
+     
+     @UserDefault(key: Keys.canUseStealthMode.rawValue)
+     public var canUseStealthMode: Bool    
+diff --git a/submodules/TelegramCore/Sources/State/ManagedAccountPresence.swift b/submodules/TelegramCore/Sources/State/ManagedAccountPresence.swift
+index 7256668b..903c458d 100644
+--- a/submodules/TelegramCore/Sources/State/ManagedAccountPresence.swift
++++ b/submodules/TelegramCore/Sources/State/ManagedAccountPresence.swift
+@@ -3,6 +3,7 @@ internal import TelegramApi
+ import Postbox
+ import SwiftSignalKit
+ import MtProtoKit
++import SGSimpleSettings
+ 
+ private typealias SignalKitTimer = SwiftSignalKit.Timer
+ 
+@@ -53,7 +54,8 @@ private final class AccountPresenceManagerImpl {
+             }, queue: self.queue)
+             self.onlineTimer = timer
+             timer.start()
+-            request = self.network.request(Api.functions.account.updateStatus(offline: .boolFalse))
++            // MARK: Silent Gram — в режиме призрака всегда шлём «не в сети» (и повторяем каждые 30 с)
++            request = self.network.request(Api.functions.account.updateStatus(offline: SGSimpleSettings.shared.ghostHideOnline ? .boolTrue : .boolFalse))
+         } else {
+             self.onlineTimer?.invalidate()
+             self.onlineTimer = nil
+diff --git a/submodules/TelegramCore/Sources/State/ManagedLocalInputActivities.swift b/submodules/TelegramCore/Sources/State/ManagedLocalInputActivities.swift
+index e8e08874..28e65877 100644
+--- a/submodules/TelegramCore/Sources/State/ManagedLocalInputActivities.swift
++++ b/submodules/TelegramCore/Sources/State/ManagedLocalInputActivities.swift
+@@ -3,6 +3,7 @@ import Postbox
+ import SwiftSignalKit
+ internal import TelegramApi
+ import MtProtoKit
++import SGSimpleSettings
+ 
+ 
+ public struct PeerActivitySpace: Hashable {
+@@ -142,6 +143,10 @@ private func actionFromActivity(_ activity: PeerInputActivity?) -> Api.SendMessa
+ }
+ 
+ private func requestActivity(postbox: Postbox, network: Network, accountPeerId: PeerId, peerId: PeerId, threadId: Int64?, activity: PeerInputActivity?) -> Signal<Void, NoError> {
++    // MARK: Silent Gram — не показываем «печатает…»
++    if SGSimpleSettings.shared.ghostHideTyping {
++        return .complete()
++    }
+     return postbox.transaction { transaction -> Signal<Void, NoError> in
+         if let peer = transaction.getPeer(peerId) {
+             if peerId == accountPeerId {
+diff --git a/submodules/TelegramCore/Sources/State/SynchronizePeerReadState.swift b/submodules/TelegramCore/Sources/State/SynchronizePeerReadState.swift
+index b2e65895..6a8afe59 100644
+--- a/submodules/TelegramCore/Sources/State/SynchronizePeerReadState.swift
++++ b/submodules/TelegramCore/Sources/State/SynchronizePeerReadState.swift
+@@ -2,6 +2,7 @@ import Foundation
+ import Postbox
+ internal import TelegramApi
+ import SwiftSignalKit
++import SGSimpleSettings
+ 
+ 
+ private enum PeerReadStateMarker: Equatable {
+@@ -252,6 +253,10 @@ private func validatePeerReadState(network: Network, postbox: Postbox, stateMana
+ }
+ 
+ private func pushPeerReadState(network: Network, postbox: Postbox, stateManager: AccountStateManager, peerId: PeerId, readState: PeerReadState) -> Signal<PeerReadState, PeerReadStateValidationError> {
++    // MARK: Silent Gram — не отправляем «прочитано» на сервер
++    if SGSimpleSettings.shared.ghostHideRead {
++        return .single(readState)
++    }
+     if peerId.namespace == Namespaces.Peer.SecretChat {
+         // Decide whether a request is needed before looking the peer up: inputSecretChat goes
+         // through loadedPeerWithId, which never emits when the peer row is missing and fails
