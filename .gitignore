@@ -1,0 +1,6 @@
+SilentGram.xcodeproj/
+SilentGram/Secrets.swift
+build/
+Payload/
+*.ipa
+.DS_Store
