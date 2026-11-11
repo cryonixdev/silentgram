@@ -19,6 +19,10 @@ private struct LoginScaffold<Content: View>: View {
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
             content
+            if !store.connection.isEmpty {
+                Label(store.connection, systemImage: "antenna.radiowaves.left.and.right")
+                    .font(.footnote).foregroundColor(.orange)
+            }
             if let err = store.lastError {
                 Text(err).font(.footnote).foregroundColor(.red)
             }
@@ -38,12 +42,17 @@ private struct FieldStyle: ViewModifier {
 }
 
 private struct MainButton: View {
+    @EnvironmentObject var store: TGStore
     let title: String
     let action: () -> Void
     var body: some View {
         Button(action: action) {
-            Text(title).bold().frame(maxWidth: .infinity).padding(14)
+            Group {
+                if store.busy { ProgressView().tint(.white) } else { Text(title).bold() }
+            }
+            .frame(maxWidth: .infinity).padding(14)
         }
+        .disabled(store.busy)
         .buttonStyle(.borderedProminent)
         .buttonBorderShape(.roundedRectangle(radius: 12))
     }

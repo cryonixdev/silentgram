@@ -21,6 +21,9 @@ final class TGStore: ObservableObject {
     @Published var lastError: String?
     @Published var myName = ""
     @Published var myPhone = ""
+    @Published var busy = false
+    /// Пусто, когда соединение есть.
+    @Published var connection = ""
 
     private var users: [Int64: String] = [:]
     private var selfDeleted = Set<String>()
@@ -108,6 +111,15 @@ final class TGStore: ObservableObject {
 
         case "updateChatAction":
             onChatAction(u)
+
+        case "updateConnectionState":
+            switch u.obj("state")?.type {
+            case "connectionStateWaitingForNetwork": connection = "Ожидание сети…"
+            case "connectionStateConnectingToProxy": connection = "Подключение к прокси…"
+            case "connectionStateConnecting": connection = "Соединение…"
+            case "connectionStateUpdating": connection = "Обновление…"
+            default: connection = ""
+            }
 
         default:
             break
@@ -410,9 +422,27 @@ final class TGStore: ObservableObject {
     func logout() { client.send(["@type": "logOut"]) }
 
     private func authCall(_ req: JSON) {
+        guard !busy else { return }
         lastError = nil
+        busy = true
         client.send(req) { [weak self] r in
-            if r.type == "error" { DispatchQueue.main.async { self?.lastError = r.str("message") } }
+            DispatchQueue.main.async {
+                self?.busy = false
+                if r.type == "error" { self?.lastError = Self.humanError(r.str("message") ?? "") }
+            }
+        }
+    }
+
+    static func humanError(_ m: String) -> String {
+        switch m {
+        case "PHONE_NUMBER_INVALID": return "Неверный номер телефона"
+        case "PHONE_CODE_INVALID": return "Неверный код"
+        case "PHONE_CODE_EXPIRED": return "Код устарел, запроси новый"
+        case "PASSWORD_HASH_INVALID": return "Неверный пароль"
+        case "API_ID_INVALID", "API_ID_PUBLISHED_FLOOD": return "Неверные api_id / api_hash"
+        default:
+            if m.hasPrefix("FLOOD_WAIT") || m.contains("Too Many") { return "Слишком много попыток, подожди немного" }
+            return m
         }
     }
 }

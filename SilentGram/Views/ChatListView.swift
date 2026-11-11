@@ -30,7 +30,7 @@ struct ChatListView: View {
             }
             .listStyle(.plain)
             .searchable(text: $query, prompt: "Поиск")
-            .navigationTitle("Чаты")
+            .navigationTitle(store.connection.isEmpty ? "Чаты" : store.connection)
             .navigationDestination(for: Int64.self) { ChatView(chatId: $0) }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
