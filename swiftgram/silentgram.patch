@@ -1,8 +1,8 @@
 diff --git a/Swiftgram/SGPeerInfoRows/Sources/SGPeerInfoRows.swift b/Swiftgram/SGPeerInfoRows/Sources/SGPeerInfoRows.swift
-index 23a99c55..63bc18b6 100644
+index 23a99c55..09374f74 100644
 --- a/Swiftgram/SGPeerInfoRows/Sources/SGPeerInfoRows.swift
 +++ b/Swiftgram/SGPeerInfoRows/Sources/SGPeerInfoRows.swift
-@@ -167,12 +167,9 @@ func sgPeerInfoSettingsItems(context: AccountContext, paymentsEnabled: Bool, pre
+@@ -167,12 +167,11 @@ func sgPeerInfoSettingsItems(context: AccountContext, paymentsEnabled: Bool, pre
      }
  
      var items: [PeerInfoScreenItem] = []
@@ -12,14 +12,29 @@ index 23a99c55..63bc18b6 100644
 -        }))
 -    }
 -    items.append(PeerInfoScreenDisclosureItem(id: 1, label: swiftgramLabel, text: "Swiftgram", icon: PresentationResourcesSettings.swiftgram, action: {
-+    // MARK: Silent Gram — пункт Swiftgram Pro убран
-+    let _ = swiftgramProLabel
++    // MARK: Silent Gram — Pro бесплатно
++    items.append(PeerInfoScreenDisclosureItem(id: 0, label: swiftgramProLabel, text: "Silent Gram Pro", icon: PresentationResourcesSettings.swiftgramPro, action: {
++        interaction.openSettings(.swiftgramPro)
++    }))
 +    items.append(PeerInfoScreenDisclosureItem(id: 1, label: swiftgramLabel, text: "Silent Gram", icon: PresentationResourcesSettings.swiftgram, action: {
          interaction.openSettings(.swiftgram)
      }))
      return items
+diff --git a/Swiftgram/SGProUI/Sources/SGProUI.swift b/Swiftgram/SGProUI/Sources/SGProUI.swift
+index 8dd50655..fe9acf79 100644
+--- a/Swiftgram/SGProUI/Sources/SGProUI.swift
++++ b/Swiftgram/SGProUI/Sources/SGProUI.swift
+@@ -170,7 +170,7 @@ public func sgProController(context: AccountContext) -> ViewController {
+         
+         let entries = SGProControllerEntries(presentationData: presentationData)
+         
+-        let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text("Swiftgram Pro"), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
++        let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text("Silent Gram Pro"), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
+         
+         let listState = ItemListNodeState(presentationData: ItemListPresentationData(presentationData), entries: entries, style: .blocks, ensureVisibleItemTag: /*focusOnItemTag*/ nil, initialScrollToItem: nil /* scrollToItem*/ )
+         
 diff --git a/Swiftgram/SGSettingsUI/Sources/SGSettingsController.swift b/Swiftgram/SGSettingsUI/Sources/SGSettingsController.swift
-index b5b41d9f..b3e6640a 100644
+index b5b41d9f..082ec694 100644
 --- a/Swiftgram/SGSettingsUI/Sources/SGSettingsController.swift
 +++ b/Swiftgram/SGSettingsUI/Sources/SGSettingsController.swift
 @@ -27,6 +27,7 @@ import UndoUI
@@ -30,7 +45,7 @@ index b5b41d9f..b3e6640a 100644
      case content
      case tabs
      case folders
-@@ -60,6 +61,13 @@ private enum SGBoolSetting: String {
+@@ -60,6 +61,15 @@ private enum SGBoolSetting: String {
      case rememberLastFolder
      case sendLargePhotos
      case storyStealthMode
@@ -41,10 +56,12 @@ index b5b41d9f..b3e6640a 100644
 +    case saveEditHistory
 +    case noMediaMode
 +    case readOnlyMode
++    case saveBannedChats
++    case hideSponsoredMessages
      case disableSwipeToRecordStory
      case disableDeleteChatSwipeOption
      case quickTranslateButton
-@@ -163,6 +171,19 @@ private func SGControllerEntries(presentationData: PresentationData, callListSet
+@@ -163,6 +173,22 @@ private func SGControllerEntries(presentationData: PresentationData, callListSet
          id.increment(3)
      }
      
@@ -60,11 +77,14 @@ index b5b41d9f..b3e6640a 100644
 +    entries.append(.toggle(id: id.count, section: .ghost, settingName: .noMediaMode, value: SGSimpleSettings.shared.noMediaMode, text: "Без медиа (запрет фото, видео и историй)", enabled: true))
 +    entries.append(.toggle(id: id.count, section: .ghost, settingName: .readOnlyMode, value: SGSimpleSettings.shared.readOnlyMode, text: "Только чтение (никому не писать)", enabled: true))
 +    entries.append(.notice(id: id.count, section: .ghost, text: "«Без медиа» не даёт отправить фото, видео, файлы, голосовые, стикеры и выложить историю — текст отправляется. «Только чтение» блокирует любую отправку."))
++    entries.append(.toggle(id: id.count, section: .ghost, settingName: .saveBannedChats, value: SGSimpleSettings.shared.saveBannedChats, text: "Сохранять чаты после бана", enabled: true))
++    entries.append(.toggle(id: id.count, section: .ghost, settingName: .hideSponsoredMessages, value: SGSimpleSettings.shared.hideSponsoredMessages, text: "Без рекламы в каналах", enabled: true))
++    entries.append(.notice(id: id.count, section: .ghost, text: "Если тебя забанят в группе или канале, чат останется в списке, и можно будет перечитать то, что успело загрузиться."))
 +
      if appConfiguration.sgWebSettings.global.canEditSettings {
          entries.append(.disclosure(id: id.count, section: .content, link: .contentSettings, text: i18n("Settings.ContentSettings", lang)))
      } else {
-@@ -415,6 +436,20 @@ public func sgSettingsController(context: AccountContext/*, focusOnItemTag: Int?
+@@ -415,6 +441,24 @@ public func sgSettingsController(context: AccountContext/*, focusOnItemTag: Int?
              SGSimpleSettings.shared.sendLargePhotos = value
          case .storyStealthMode:
              SGSimpleSettings.shared.storyStealthMode = value
@@ -82,10 +102,14 @@ index b5b41d9f..b3e6640a 100644
 +            SGSimpleSettings.shared.noMediaMode = value
 +        case .readOnlyMode:
 +            SGSimpleSettings.shared.readOnlyMode = value
++        case .saveBannedChats:
++            SGSimpleSettings.shared.saveBannedChats = value
++        case .hideSponsoredMessages:
++            SGSimpleSettings.shared.hideSponsoredMessages = value
          case .disableSwipeToRecordStory:
              SGSimpleSettings.shared.disableSwipeToRecordStory = value
          case .quickTranslateButton:
-@@ -730,7 +765,7 @@ public func sgSettingsController(context: AccountContext/*, focusOnItemTag: Int?
+@@ -730,7 +774,7 @@ public func sgSettingsController(context: AccountContext/*, focusOnItemTag: Int?
          
          let entries = SGControllerEntries(presentationData: presentationData, callListSettings: callListSettings, experimentalUISettings: experimentalUISettings, appConfiguration: appConfiguration, nameColors: PeerNameColors.with(availableReplyColors: availableReplyColors, availableProfileColors: availableProfileColors), state: state)
          
@@ -95,10 +119,10 @@ index b5b41d9f..b3e6640a 100644
          // TODO(swiftgram): focusOnItemTag support
          /* var index = 0
 diff --git a/Swiftgram/SGSimpleSettings/Sources/SimpleSettings.swift b/Swiftgram/SGSimpleSettings/Sources/SimpleSettings.swift
-index 6dfc4ec9..d98468b9 100644
+index 6dfc4ec9..c87d0fa9 100644
 --- a/Swiftgram/SGSimpleSettings/Sources/SimpleSettings.swift
 +++ b/Swiftgram/SGSimpleSettings/Sources/SimpleSettings.swift
-@@ -106,6 +106,13 @@ public class SGSimpleSettings {
+@@ -106,6 +106,15 @@ public class SGSimpleSettings {
          case sendLargePhotos
          case outgoingPhotoQuality
          case storyStealthMode
@@ -109,10 +133,12 @@ index 6dfc4ec9..d98468b9 100644
 +        case saveEditHistory
 +        case noMediaMode
 +        case readOnlyMode
++        case saveBannedChats
++        case hideSponsoredMessages
          case canUseStealthMode
          case disableSwipeToRecordStory
          case quickTranslateButton
-@@ -268,6 +275,13 @@ public class SGSimpleSettings {
+@@ -268,6 +277,15 @@ public class SGSimpleSettings {
          Keys.sendLargePhotos.rawValue: false,
          Keys.outgoingPhotoQuality.rawValue: 70,
          Keys.storyStealthMode.rawValue: false,
@@ -123,10 +149,21 @@ index 6dfc4ec9..d98468b9 100644
 +        Keys.saveEditHistory.rawValue: true,
 +        Keys.noMediaMode.rawValue: false,
 +        Keys.readOnlyMode.rawValue: false,
++        Keys.saveBannedChats.rawValue: true,
++        Keys.hideSponsoredMessages.rawValue: true,
          Keys.canUseStealthMode.rawValue: true,
          Keys.disableSwipeToRecordStory.rawValue: false,
          Keys.quickTranslateButton.rawValue: false,
-@@ -394,6 +408,28 @@ public class SGSimpleSettings {
+@@ -340,7 +358,7 @@ public class SGSimpleSettings {
+         Keys.legacyNotificationsFix.rawValue: false,
+         Keys.pinnedMessageNotifications.rawValue: PinnedMessageNotificationsSettings.default.rawValue,
+         Keys.mentionsAndRepliesNotifications.rawValue: MentionsAndRepliesNotificationsSettings.default.rawValue,
+-        Keys.status.rawValue: 1,
++        Keys.status.rawValue: 2, // MARK: Silent Gram — Pro бесплатно
+         Keys.showRepostToStoryV2.rawValue: true,
+         Keys.hideAccountInNotifications.rawValue: false,
+     ]
+@@ -394,6 +412,34 @@ public class SGSimpleSettings {
      
      @UserDefault(key: Keys.storyStealthMode.rawValue)
      public var storyStealthMode: Bool
@@ -152,9 +189,284 @@ index 6dfc4ec9..d98468b9 100644
 +
 +    @UserDefault(key: Keys.readOnlyMode.rawValue)
 +    public var readOnlyMode: Bool
++
++    @UserDefault(key: Keys.saveBannedChats.rawValue)
++    public var saveBannedChats: Bool
++
++    @UserDefault(key: Keys.hideSponsoredMessages.rawValue)
++    public var hideSponsoredMessages: Bool
      
      @UserDefault(key: Keys.canUseStealthMode.rawValue)
      public var canUseStealthMode: Bool    
+@@ -552,7 +598,7 @@ public class SGSimpleSettings {
+     @UserDefault(key: Keys.status.rawValue, userDefaults: UserDefaults(suiteName: APP_GROUP_IDENTIFIER) ?? .standard)
+     public var status: Int64
+ 
+-    public var ephemeralStatus: Int64 = 1
++    public var ephemeralStatus: Int64 = 2 // MARK: Silent Gram
+     
+     @UserDefault(key: Keys.messageFilterKeywords.rawValue)
+     public var messageFilterKeywords: [String]
+diff --git a/Swiftgram/SGStatus/Sources/SGStatus.swift b/Swiftgram/SGStatus/Sources/SGStatus.swift
+index 6bedd862..530c3432 100644
+--- a/Swiftgram/SGStatus/Sources/SGStatus.swift
++++ b/Swiftgram/SGStatus/Sources/SGStatus.swift
+@@ -3,20 +3,27 @@ import SwiftSignalKit
+ import TelegramCore
+ 
+ public struct SGStatus: Equatable, Codable {
+-    public var status: Int64
++    // MARK: Silent Gram — все функции Pro доступны бесплатно
++    public var status: Int64 {
++        didSet {
++            if self.status < 2 {
++                self.status = 2
++            }
++        }
++    }
+     
+     public static var `default`: SGStatus {
+-        return SGStatus(status: 1)
++        return SGStatus(status: 2)
+     }
+     
+     public init(status: Int64) {
+-        self.status = status
++        self.status = max(status, 2)
+     }
+     
+     public init(from decoder: Decoder) throws {
+         let container = try decoder.container(keyedBy: StringCodingKey.self)
+ 
+-        self.status = try container.decodeIfPresent(Int64.self, forKey: "status") ?? 1
++        self.status = max(try container.decodeIfPresent(Int64.self, forKey: "status") ?? 2, 2)
+     }
+     
+     public func encode(to encoder: Encoder) throws {
+diff --git a/Swiftgram/SGStrings/Strings/en.lproj/SGLocalizable.strings b/Swiftgram/SGStrings/Strings/en.lproj/SGLocalizable.strings
+index 9c397fb5..04f5840f 100644
+--- a/Swiftgram/SGStrings/Strings/en.lproj/SGLocalizable.strings
++++ b/Swiftgram/SGStrings/Strings/en.lproj/SGLocalizable.strings
+@@ -18,7 +18,7 @@
+ /* Example: Hide "All Chats" */
+ "Settings.Folders.AllChatsHidden" = "Hide \"%@\"";
+ "Settings.Folders.RememberLast" = "Open Last Folder";
+-"Settings.Folders.RememberLast.Notice" = "Swiftgram will open the last used folder when you restart the app or switch accounts.";
++"Settings.Folders.RememberLast.Notice" = "Silent Gram will open the last used folder when you restart the app or switch accounts.";
+ 
+ "Settings.Folders.CompactNames" = "Smaller spacing";
+ "Settings.Folders.AllChatsTitle" = "\"All Chats\" title";
+@@ -49,7 +49,7 @@
+ /* Do not translate */
+ "Settings.Translation.Backend.gtranslate" = "GTranslate";
+ "Settings.Translation.Backend.system" = "System";
+-"Settings.Translation.Backend.Notice" = "Swiftgram will fallback to %@ if selected translation service is not available.";
++"Settings.Translation.Backend.Notice" = "Silent Gram will fallback to %@ if selected translation service is not available.";
+ 
+ "Settings.Transcription.Header" = "VOICE-TO-TEXT";
+ "Settings.Transcription.Backend" = "Service";
+@@ -57,7 +57,7 @@
+ "Settings.Transcription.Backend.default" = "Telegram";
+ /* Do not translate */
+ "Settings.Transcription.Backend.apple" = "Apple";
+-"Settings.Transcription.Backend.Notice" = "Swiftgram will fallback to %@ if selected transcription service is not available.";
++"Settings.Transcription.Backend.Notice" = "Silent Gram will fallback to %@ if selected transcription service is not available.";
+ 
+ "Stories.Warning.Author" = "Author";
+ "Stories.Warning.ViewStory" = "View Story?";
+@@ -106,7 +106,7 @@
+ "Common.RestartRequired" = "Restart required";
+ "Common.RestartNow" = "Restart Now";
+ "Common.OpenTelegram" = "Open Telegram";
+-"Common.UseTelegramForPremium" = "Please note that to get Telegram Premium, you must use the official Telegram app. Once you have obtained Telegram Premium, all its features will become available in Swiftgram.";
++"Common.UseTelegramForPremium" = "Please note that to get Telegram Premium, you must use the official Telegram app. Once you have obtained Telegram Premium, all its features will become available in Silent Gram.";
+ "Common.UpdateOS" = "iOS update required";
+ "Common.KnowWhatYouDo" = "Please, change these settings only if you know what they do.";
+ 
+@@ -122,7 +122,7 @@
+ "ContextMenu.SelectFromUser" = "Select from Author";
+ 
+ "Settings.ContextMenu" = "CONTEXT MENU";
+-"Settings.ContextMenu.Notice" = "Disabled entries will be available in \"Swiftgram\" sub-menu.";
++"Settings.ContextMenu.Notice" = "Disabled entries will be available in \"Silent Gram\" sub-menu.";
+ 
+ 
+ "Settings.ChatSwipeOptions" = "Chat List Swipe Options";
+@@ -166,7 +166,7 @@
+ "Settings.secondsInMessages" = "Seconds in Messages";
+ 
+ "Settings.CallConfirmation" = "Call Confirmation";
+-"Settings.CallConfirmation.Notice" = "Swiftgram will ask for your confirmation before making a call.";
++"Settings.CallConfirmation.Notice" = "Silent Gram will ask for your confirmation before making a call.";
+ 
+ /* Confirmation before making a Call */
+ "CallConfirmation.Audio.Title" = "Make a Call?";
+@@ -192,11 +192,11 @@
+ "SessionBackup.LoggedIn" = "Logged In";
+ "SessionBackup.LoggedOut" = "Logged Out";
+ "SessionBackup.DeleteAll.Title" = "Delete All Sessions?";
+-"SessionBackup.DeleteAll.Text" = "All sessions will be removed from Keychain.\n\nAccounts will not be logged out from Swiftgram.";
++"SessionBackup.DeleteAll.Text" = "All sessions will be removed from Keychain.\n\nAccounts will not be logged out from Silent Gram.";
+ "SessionBackup.DeleteSingle.Title" = "Delete 1 (one) Session?";
+-"SessionBackup.DeleteSingle.Text" = "%@ session will be removed from Keychain.\n\nAccount will not be logged out from Swiftgram.";
++"SessionBackup.DeleteSingle.Text" = "%@ session will be removed from Keychain.\n\nAccount will not be logged out from Silent Gram.";
+ "SessionBackup.RemoveFromApp.Title" = "Remove account from App?";
+-"SessionBackup.RemoveFromApp.Text" = "%@ session WILL BE REMOVED from Swiftgram! Session will remain active, so you can restore it later.";
++"SessionBackup.RemoveFromApp.Text" = "%@ session WILL BE REMOVED from Silent Gram! Session will remain active, so you can restore it later.";
+ "SessionBackup.Notice" = "Sessions are encrypted and stored in the device Keychain. Sessions never leave your device.\n\nIMPORTANT: To restore sessions on a new device or after an OS reset, you MUST enable encrypted backups, otherwise Keychain won't be transfered.\n\nNOTE: Sessions may still be revoked by Telegram or from another device.";
+ 
+ "AuthorizationError.Notice" = "Telegram logged out current session.";
+@@ -223,11 +223,11 @@
+ 
+ "PayWall.SessionBackup.Title" = "Accounts Backup";
+ "PayWall.SessionBackup.Notice" = "Log-in to accounts without code, even after reinstall. Secure storage with on-device Keychain.";
+-"PayWall.SessionBackup.Description" = "Changing device or deleting Swiftgram is no longer an issue. Restore all Sessions that are still Active on Telegram servers.";
++"PayWall.SessionBackup.Description" = "Changing device or deleting Silent Gram is no longer an issue. Restore all Sessions that are still Active on Telegram servers.";
+ 
+ "PayWall.MessageFilter.Title" = "Message Filter";
+ "PayWall.MessageFilter.Notice" = "Reduce visibility of SPAM, promotions and annoying messages.";
+-"PayWall.MessageFilter.Description" = "Create a list of keywords you don't want to see often and Swiftgram will reduce distractions.";
++"PayWall.MessageFilter.Description" = "Create a list of keywords you don't want to see often and Silent Gram will reduce distractions.";
+ 
+ "PayWall.Notifications.Title" = "Disable @mentions and replies";
+ "PayWall.Notifications.Notice" = "Hide or mute non-important notifications.";
+@@ -238,10 +238,10 @@
+ "PayWall.InputToolbar.Description" = "Apply and clear Formatting or insert new lines like a Pro.";
+ 
+ "PayWall.AppIcons.Title" = "Unique App Icons and Badges";
+-"PayWall.AppIcons.Notice" = "Customize Swiftgram look on your home screen and screenshots.";
++"PayWall.AppIcons.Notice" = "Customize Silent Gram look on your home screen and screenshots.";
+ 
+-"PayWall.About.Title" = "About Swiftgram Pro";
+-"PayWall.About.Notice" = "Free version of Swiftgram provides dozens of features and improvements over Telegram app. Innovating and keeping Swiftgram in sync with monthly Telegram updates is a huge effort that requires a lot of time and expensive hardware.\n\nSwiftgram is an open-source app that respects your privacy and doesn't bother you with ads. Subscribing to Swiftgram Pro you get access to exclusive features and support an independent developer.";
++"PayWall.About.Title" = "About Silent Gram Pro";
++"PayWall.About.Notice" = "Free version of Silent Gram provides dozens of features and improvements over Telegram app. Innovating and keeping Silent Gram in sync with monthly Telegram updates is a huge effort that requires a lot of time and expensive hardware.\n\nSilent Gram is an open-source app that respects your privacy and doesn't bother you with ads. Subscribing to Silent Gram Pro you get access to exclusive features and support an independent developer.";
+ /* DO NOT TRANSLATE */
+ "PayWall.About.Signature" = "@Kylmakalle";
+ /* DO NOT TRANSLATE */
+@@ -255,8 +255,8 @@
+ "PayWall.Privacy" = "Privacy Policy";
+ "PayWall.TermsURL" = "https://swiftgram.app/terms";
+ "PayWall.PrivacyURL" = "https://swiftgram.app/privacy";
+-"PayWall.Notice.Markdown" = "By subscribing to Swiftgram Pro you agree to the [Swiftgram Terms of Service](%1$@) and [Privacy Policy](%2$@).";
+-"PayWall.Notice.Raw" = "By subscribing to Swiftgram Pro you agree to the Swiftgram Terms of Service and Privacy Policy.";
++"PayWall.Notice.Markdown" = "By subscribing to Silent Gram Pro you agree to the [Silent Gram Terms of Service](%1$@) and [Privacy Policy](%2$@).";
++"PayWall.Notice.Raw" = "By subscribing to Silent Gram Pro you agree to the Silent Gram Terms of Service and Privacy Policy.";
+ 
+ "PayWall.Button.OpenPro" = "Use Pro features";
+ "PayWall.Button.Purchasing" = "Purchasing...";
+diff --git a/Swiftgram/SGStrings/Strings/ru.lproj/SGLocalizable.strings b/Swiftgram/SGStrings/Strings/ru.lproj/SGLocalizable.strings
+index 83d23ad9..4033ce50 100644
+--- a/Swiftgram/SGStrings/Strings/ru.lproj/SGLocalizable.strings
++++ b/Swiftgram/SGStrings/Strings/ru.lproj/SGLocalizable.strings
+@@ -18,7 +18,7 @@
+ /* Example: Hide "All Chats" */
+ "Settings.Folders.AllChatsHidden" = "Скрыть \"%@\"";
+ "Settings.Folders.RememberLast" = "Открывать последнюю папку";
+-"Settings.Folders.RememberLast.Notice" = "Swiftgram откроет последнюю использованную папку после перезапуска или переключения учетной записи";
++"Settings.Folders.RememberLast.Notice" = "Silent Gram откроет последнюю использованную папку после перезапуска или переключения учетной записи";
+ 
+ "Settings.Folders.CompactNames" = "Уменьшенные расстояния";
+ "Settings.Folders.AllChatsTitle" = "Название \"Все чаты\"";
+@@ -44,7 +44,7 @@
+ /* Do not translate */
+ "Settings.Translation.Backend.gtranslate" = "GTranslate";
+ "Settings.Translation.Backend.system" = "Система";
+-"Settings.Translation.Backend.Notice" = "Swiftgram будет использовать %@, если выбранный сервис перевода недоступен.";
++"Settings.Translation.Backend.Notice" = "Silent Gram будет использовать %@, если выбранный сервис перевода недоступен.";
+ 
+ "Settings.Transcription.Header" = "ГОЛОС В ТЕКСТ";
+ "Settings.Transcription.Backend" = "Сервис";
+@@ -52,7 +52,7 @@
+ "Settings.Transcription.Backend.default" = "Telegram";
+ /* Do not translate */
+ "Settings.Transcription.Backend.apple" = "Apple";
+-"Settings.Transcription.Backend.Notice" = "Swiftgram будет использовать %@, если выбранный сервис транскрипции недоступен.";
++"Settings.Transcription.Backend.Notice" = "Silent Gram будет использовать %@, если выбранный сервис транскрипции недоступен.";
+ 
+ "Stories.Warning.Author" = "Автор";
+ "Stories.Warning.ViewStory" = "Просмотреть историю?";
+@@ -101,7 +101,7 @@
+ "Common.RestartRequired" = "Необходим перезапуск";
+ "Common.RestartNow" = "Перезапустить Сейчас";
+ "Common.OpenTelegram" = "Открыть Telegram";
+-"Common.UseTelegramForPremium" = "Обратите внимание, что для получения Telegram Premium, вы должны использовать официальное приложение Telegram. Как только вы получите Telegram Premium, все его функции станут доступны в Swiftgram.";
++"Common.UseTelegramForPremium" = "Обратите внимание, что для получения Telegram Premium, вы должны использовать официальное приложение Telegram. Как только вы получите Telegram Premium, все его функции станут доступны в Silent Gram.";
+ "Common.UpdateOS" = "Требуется обновление iOS";
+ "Common.KnowWhatYouDo" = "Пожалуйста, меняйте эти настройки только если вы знаете, что они делают.";
+ 
+@@ -117,7 +117,7 @@
+ "ContextMenu.SelectFromUser" = "Выбрать от Автора";
+ 
+ "Settings.ContextMenu" = "КОНТЕКСТНОЕ МЕНЮ";
+-"Settings.ContextMenu.Notice" = "Выключенные пункты будут доступны в подменю «Swiftgram».";
++"Settings.ContextMenu.Notice" = "Выключенные пункты будут доступны в подменю «Silent Gram».";
+ 
+ 
+ "Settings.ChatSwipeOptions" = "Опции чатов при свайпе";
+@@ -161,7 +161,7 @@
+ "Settings.secondsInMessages" = "Секунды в Сообщениях";
+ 
+ "Settings.CallConfirmation" = "Подтверждение вызова";
+-"Settings.CallConfirmation.Notice" = "Swiftgram запросит подтверждение перед совершением звонка.";
++"Settings.CallConfirmation.Notice" = "Silent Gram запросит подтверждение перед совершением звонка.";
+ 
+ /* Confirmation before making a Call */
+ "CallConfirmation.Audio.Title" = "Позвонить?";
+@@ -186,11 +186,11 @@
+ "SessionBackup.LoggedIn" = "Залогинен";
+ "SessionBackup.LoggedOut" = "Разлогинен";
+ "SessionBackup.DeleteAll.Title" = "Удалить все сессии?";
+-"SessionBackup.DeleteAll.Text" = "Все сессии будут удалены из Keychain.\n\nАккаунты не будут разлогинены из Swiftgram.";
++"SessionBackup.DeleteAll.Text" = "Все сессии будут удалены из Keychain.\n\nАккаунты не будут разлогинены из Silent Gram.";
+ "SessionBackup.DeleteSingle.Title" = "Удалить 1 (одну) сессию?";
+-"SessionBackup.DeleteSingle.Text" = "%@ сессия будет удалена из Keychain.\n\nАккаунт не будет разлогинен из Swiftgram.";
++"SessionBackup.DeleteSingle.Text" = "%@ сессия будет удалена из Keychain.\n\nАккаунт не будет разлогинен из Silent Gram.";
+ "SessionBackup.RemoveFromApp.Title" = "Удалить аккаунт из приложения?";
+-"SessionBackup.RemoveFromApp.Text" = "%@ сессия БУДЕТ УДАЛЕНА из Swiftgram! Сессия останется активной, чтобы вы могли восстановить ее позже.";
++"SessionBackup.RemoveFromApp.Text" = "%@ сессия БУДЕТ УДАЛЕНА из Silent Gram! Сессия останется активной, чтобы вы могли восстановить ее позже.";
+ "SessionBackup.Notice" = "Сессии шифруются и хранятся в Keychain устройства. Сессии никогда не покидают ваше устройство.\n\nВАЖНО: Чтобы восстановить сессии на новом устройстве или после сброса системы, ОБЯЗАТЕЛЬНО включите шифрование резервных копий ОС, иначе Keychain будет утерян при восстановлении.\n\nПРИМЕЧАНИЕ: Сессии всё ещё могут быть разлогинены самим Telegram или с другого устройства.";
+ 
+ "AuthorizationError.Notice" = "Telegram разлогинил текущую сессию.";
+@@ -217,11 +217,11 @@
+ 
+ "PayWall.SessionBackup.Title" = "Бэкап Аккаунтов";
+ "PayWall.SessionBackup.Notice" = "Вход в аккаунты без кода, даже после переустановки. Безопасное хранение в Keychain на устройстве.";
+-"PayWall.SessionBackup.Description" = "Смена устройства или удаление Swiftgram больше не проблема. Восстановите все ваши Сессии, которые активны на серверах Telegram.";
++"PayWall.SessionBackup.Description" = "Смена устройства или удаление Silent Gram больше не проблема. Восстановите все ваши Сессии, которые активны на серверах Telegram.";
+ 
+ "PayWall.MessageFilter.Title" = "Фильтр сообщений";
+ "PayWall.MessageFilter.Notice" = "Уменьшает видимость навязчивых сообщений со СПАМом или рекламой.";
+-"PayWall.MessageFilter.Description" = "Создайте список ключевых слов, которые вы не хотите встречать, и Swiftgram снизит их видимость.";
++"PayWall.MessageFilter.Description" = "Создайте список ключевых слов, которые вы не хотите встречать, и Silent Gram снизит их видимость.";
+ 
+ "PayWall.Notifications.Title" = "Отключение @тэгов и ответов";
+ "PayWall.Notifications.Notice" = "Скрывает или приглушает неважные уведомления.";
+@@ -232,10 +232,10 @@
+ "PayWall.InputToolbar.Description" = "Применяйте и очищайте форматирование, переносите абзацы как Pro.";
+ 
+ "PayWall.AppIcons.Title" = "Уникальные иконки приложения";
+-"PayWall.AppIcons.Notice" = "Настройка внешнего вида Swiftgram на главном экране.";
++"PayWall.AppIcons.Notice" = "Настройка внешнего вида Silent Gram на главном экране.";
+ 
+-"PayWall.About.Title" = "О Swiftgram Pro";
+-"PayWall.About.Notice" = "Бесплатная версия Swiftgram предлагает десятки функций и улучшений по сравнению с приложением Telegram. Новые функции и синхронизация Swiftgram с ежемесячными обновлениями Telegram — это огромные усилия, требующие много времени и дорогой техники.\n\nSwiftgram — это приложение с открытым исходным кодом, которое уважает вашу конфиденциальность и не беспокоит вас рекламой. Подписываясь на Swiftgram Pro, вы получаете доступ к эксклюзивным функциям и поддерживаете независимого разработчика.";
++"PayWall.About.Title" = "О Silent Gram Pro";
++"PayWall.About.Notice" = "Бесплатная версия Silent Gram предлагает десятки функций и улучшений по сравнению с приложением Telegram. Новые функции и синхронизация Silent Gram с ежемесячными обновлениями Telegram — это огромные усилия, требующие много времени и дорогой техники.\n\nSilent Gram — это приложение с открытым исходным кодом, которое уважает вашу конфиденциальность и не беспокоит вас рекламой. Подписываясь на Silent Gram Pro, вы получаете доступ к эксклюзивным функциям и поддерживаете независимого разработчика.";
+ /* DO NOT TRANSLATE */
+ "PayWall.About.Signature" = "@Kylmakalle";
+ /* DO NOT TRANSLATE */
+@@ -249,8 +249,8 @@
+ "PayWall.Privacy" = "Политика конфиденциальности";
+ "PayWall.TermsURL" = "https://swiftgram.app/terms";
+ "PayWall.PrivacyURL" = "https://swiftgram.app/privacy";
+-"PayWall.Notice.Markdown" = "Подписываясь на Swiftgram Pro, вы соглашаетесь с [Условиями использования Swiftgram](%1$@) и [Политикой конфиденциальности](%2$@).";
+-"PayWall.Notice.Raw" = "Подписываясь на Swiftgram Pro, вы соглашаетесь с Условиями использования и Политикой конфиденциальности Swiftgram.";
++"PayWall.Notice.Markdown" = "Подписываясь на Silent Gram Pro, вы соглашаетесь с [Условиями использования Silent Gram](%1$@) и [Политикой конфиденциальности](%2$@).";
++"PayWall.Notice.Raw" = "Подписываясь на Silent Gram Pro, вы соглашаетесь с Условиями использования и Политикой конфиденциальности Silent Gram.";
+ 
+ "PayWall.Button.OpenPro" = "Pro функции";
+ "PayWall.Button.Purchasing" = "Покупка...";
 diff --git a/Telegram/Telegram-iOS/Swiftgram.icon/Assets/Default@3x 2.svg b/Telegram/Telegram-iOS/Swiftgram.icon/Assets/Default@3x 2.svg
 index 0214d76c..f3d32bc9 100644
 --- a/Telegram/Telegram-iOS/Swiftgram.icon/Assets/Default@3x 2.svg	
@@ -277,6 +589,605 @@ index 11184136..eee60d90 100644
    }
  }
 \ No newline at end of file
+diff --git a/Telegram/Telegram-iOS/en.lproj/Localizable.strings b/Telegram/Telegram-iOS/en.lproj/Localizable.strings
+index 673a292d..a1664b7b 100644
+--- a/Telegram/Telegram-iOS/en.lproj/Localizable.strings
++++ b/Telegram/Telegram-iOS/en.lproj/Localizable.strings
+@@ -402,23 +402,23 @@
+ "Date.ChatDateHeaderYear" = "%1$@ %2$@, %3$@";
+ 
+ // Tour
+-"Tour.Title1" = "Swiftgram";
++"Tour.Title1" = "Silent Gram";
+ "Tour.Text1" = "The world's **fastest** messaging app.\nIt is **free** and **secure**.";
+ 
+ "Tour.Title2" = "Fast";
+-"Tour.Text2" = "**Swiftgram** delivers messages\nfaster than any other application.";
++"Tour.Text2" = "**Silent Gram** delivers messages\nfaster than any other application.";
+ 
+ "Tour.Title3" = "Powerful";
+-"Tour.Text3" = "**Swiftgram** has no limits on\nthe size of your media and chats.";
++"Tour.Text3" = "**Silent Gram** has no limits on\nthe size of your media and chats.";
+ 
+ "Tour.Title4" = "Secure";
+-"Tour.Text4" = "**Swiftgram** keeps your messages\nsafe from hacker attacks.";
++"Tour.Text4" = "**Silent Gram** keeps your messages\nsafe from hacker attacks.";
+ 
+ "Tour.Title5" = "Cloud-Based";
+-"Tour.Text5" = "**Swiftgram** lets you access your\nmessages from multiple devices.";
++"Tour.Text5" = "**Silent Gram** lets you access your\nmessages from multiple devices.";
+ 
+ "Tour.Title6" = "Free";
+-"Tour.Text6" = "**Swiftgram** provides free unlimited\ncloud storage for chats and media.";
++"Tour.Text6" = "**Silent Gram** provides free unlimited\ncloud storage for chats and media.";
+ 
+ "Tour.StartButton" = "Start Messaging";
+ 
+@@ -433,7 +433,7 @@
+ "Login.CallRequestState3" = "Telegram dialed your number\n[Didn't get the code?]";
+ "Login.EmailNotConfiguredError" = "An email account is required so that you can send us details about the error.\n\nPlease go to your device‘s settings > Passwords & Accounts > Add account and set up an email account.";
+ "Login.EmailCodeSubject" = "%@, no code";
+-"Login.EmailCodeBody" = "My phone number is:\n%@\nI can't get an activation code for Swiftgram.";
++"Login.EmailCodeBody" = "My phone number is:\n%@\nI can't get an activation code for Silent Gram.";
+ "Login.UnknownError" = "An error occurred, please try again later.";
+ "Login.InvalidCodeError" = "Invalid code, please try again.";
+ "Login.NetworkError" = "Please check your internet connection and try again.";
+@@ -444,13 +444,13 @@
+ "Login.InvalidLastNameError" = "Sorry, this last name can't be used.";
+ 
+ "Login.InvalidPhoneEmailSubject" = "Invalid phone number: %@";
+-"Login.InvalidPhoneEmailBody" = "I'm trying to use my mobile phone number: %1$@\nBut Swiftgram says it's invalid. Please help.\n\nApp version: %2$@\nOS version: %3$@\nLocale: %4$@\nMNC: %5$@";
++"Login.InvalidPhoneEmailBody" = "I'm trying to use my mobile phone number: %1$@\nBut Silent Gram says it's invalid. Please help.\n\nApp version: %2$@\nOS version: %3$@\nLocale: %4$@\nMNC: %5$@";
+ 
+ "Login.PhoneBannedEmailSubject" = "Banned phone number: %@";
+-"Login.PhoneBannedEmailBody" = "I'm trying to use my mobile phone number: %1$@\nBut Swiftgram says it's banned. Please help.\n\nApp version: %2$@\nOS version: %3$@\nLocale: %4$@\nMNC: %5$@";
++"Login.PhoneBannedEmailBody" = "I'm trying to use my mobile phone number: %1$@\nBut Silent Gram says it's banned. Please help.\n\nApp version: %2$@\nOS version: %3$@\nLocale: %4$@\nMNC: %5$@";
+ 
+-"Login.PhoneGenericEmailSubject" = "Swiftgram iOS error: %@";
+-"Login.PhoneGenericEmailBody" = "I'm trying to use my mobile phone number: %1$@\nBut Swiftgram shows an error. Please help.\n\nError: %2$@\nApp version: %3$@\nOS version: %4$@\nLocale: %5$@\nMNC: %6$@";
++"Login.PhoneGenericEmailSubject" = "Silent Gram iOS error: %@";
++"Login.PhoneGenericEmailBody" = "I'm trying to use my mobile phone number: %1$@\nBut Silent Gram shows an error. Please help.\n\nError: %2$@\nApp version: %3$@\nOS version: %4$@\nLocale: %5$@\nMNC: %6$@";
+ 
+ "Login.PhonePaidEmailSubject" = "Payment Issue";
+ 
+@@ -494,8 +494,8 @@
+ "Contacts.Title" = "Contacts";
+ "Contacts.FailedToSendInvitesMessage" = "An error occurred.";
+ "Contacts.AccessDeniedError" = "Telegram does not have access to your contacts";
+-"Contacts.AccessDeniedHelpLandscape" = "Please go to your %@ Settings — Privacy — Contacts.\nThen select ON for Swiftgram.";
+-"Contacts.AccessDeniedHelpPortrait" = "Please go to your %@ Settings — Privacy — Contacts. Then select ON for Swiftgram.";
++"Contacts.AccessDeniedHelpLandscape" = "Please go to your %@ Settings — Privacy — Contacts.\nThen select ON for Silent Gram.";
++"Contacts.AccessDeniedHelpPortrait" = "Please go to your %@ Settings — Privacy — Contacts. Then select ON for Silent Gram.";
+ "Contacts.AccessDeniedHelpON" = "ON";
+ "Contacts.InviteToTelegram" = "Invite to Telegram";
+ "Contacts.InviteFriends" = "Invite Friends";
+@@ -533,7 +533,7 @@
+ "Conversation.Contact" = "Contact";
+ "Conversation.BlockUser" = "Block User";
+ "Conversation.UnblockUser" = "Unblock User";
+-"Conversation.UnsupportedMedia" = "This message is not supported on your version of Swiftgram. Update the app to view:\nhttps://apps.apple.com/app/id6471879502";
++"Conversation.UnsupportedMedia" = "This message is not supported on your version of Silent Gram. Update the app to view:\nhttps://apps.apple.com/app/id6471879502";
+ "Conversation.EncryptionWaiting" = "Waiting for %@ to get online...";
+ "Conversation.EncryptionProcessing" = "Exchanging encryption keys...";
+ "Conversation.EmptyPlaceholder" = "No messages here yet...";
+@@ -840,7 +840,7 @@
+ "Settings.LogoutConfirmationText" = "\nNote that you can seamlessly use Swiftgram/Telegram on all your devices at once.\n\nRemember, logging out kills all your Secret Chats."; // MARK: Swiftgram
+ "Settings.LogoutConfirmationTextWithWallets" = "This will cancel all your Secret Chats and **delete wallet backups holding %@**. You will lose access to these funds if you haven't saved their recovery phrases.\n\nYou can use Swiftgram/Telegram on all your devices at once and use several accounts in the same app."; // MARK: Swiftgram
+ 
+-"Login.PadPhoneHelp" = "\nYou can use your main mobile number to log in to Swiftgram on all devices.\nDon't use your iPad's SIM number here — we'll need to send you an SMS.\n\nIs this number correct?\n{number}";
++"Login.PadPhoneHelp" = "\nYou can use your main mobile number to log in to Silent Gram on all devices.\nDon't use your iPad's SIM number here — we'll need to send you an SMS.\n\nIs this number correct?\n{number}";
+ "Login.PadPhoneHelpTitle" = "Your Number";
+ 
+ "MessageTimer.Custom" = "Custom";
+@@ -1208,7 +1208,7 @@
+ "SharedMedia.EmptyFilesText" = "You can send and receive\nfiles of any type up to 1.5 GB each\nand access them anywhere.";
+ 
+ "ShareFileTip.Title" = "Sharing Files";
+-"ShareFileTip.Text" = "You can share **uncompressed** media files from your Camera Roll here.\n\nTo share files of any other type, open them on your %@ (e.g. in your browser), tap **Open in...** or the action button and choose Swiftgram.";
++"ShareFileTip.Text" = "You can share **uncompressed** media files from your Camera Roll here.\n\nTo share files of any other type, open them on your %@ (e.g. in your browser), tap **Open in...** or the action button and choose Silent Gram.";
+ "ShareFileTip.CloseTip" = "Close Tip";
+ 
+ "DialogList.SearchSectionDialogs" = "Chats and Contacts";
+@@ -1266,32 +1266,32 @@
+ 
+ "AccessDenied.Title" = "Please Allow Access";
+ 
+-"AccessDenied.Contacts" = "Swiftgram messaging is based on your existing contact list.\n\nPlease go to Settings > Privacy > Contacts and set Swiftgram to ON.";
++"AccessDenied.Contacts" = "Silent Gram messaging is based on your existing contact list.\n\nPlease go to Settings > Privacy > Contacts and set Silent Gram to ON.";
+ 
+-"AccessDenied.VoiceMicrophone" = "Swiftgram needs access to your microphone to send voice messages.\n\nPlease go to Settings > Privacy > Microphone and set Swiftgram to ON.";
++"AccessDenied.VoiceMicrophone" = "Silent Gram needs access to your microphone to send voice messages.\n\nPlease go to Settings > Privacy > Microphone and set Silent Gram to ON.";
+ 
+-"AccessDenied.VideoMicrophone" = "Swiftgram needs access to your microphone to record sound in videos recording.\n\nPlease go to Settings > Privacy > Microphone and set Swiftgram to ON.";
++"AccessDenied.VideoMicrophone" = "Silent Gram needs access to your microphone to record sound in videos recording.\n\nPlease go to Settings > Privacy > Microphone and set Silent Gram to ON.";
+ 
+-"AccessDenied.MicrophoneRestricted" = "Microphone access is restricted for Swiftgram.\n\nPlease go to Settings > General > Restrictions > Microphone and set Swiftgram to ON.";
++"AccessDenied.MicrophoneRestricted" = "Microphone access is restricted for Silent Gram.\n\nPlease go to Settings > General > Restrictions > Microphone and set Silent Gram to ON.";
+ 
+ 
+-"AccessDenied.Camera" = "Swiftgram needs access to your camera to take photos and videos.\n\nPlease go to Settings > Privacy > Camera and set Swiftgram to ON.";
++"AccessDenied.Camera" = "Silent Gram needs access to your camera to take photos and videos.\n\nPlease go to Settings > Privacy > Camera and set Silent Gram to ON.";
+ 
+-"AccessDenied.CameraRestricted" = "Camera access is restricted for Swiftgram.\n\nPlease go to Settings > General > Restrictions > Camera and set Swiftgram to ON.";
++"AccessDenied.CameraRestricted" = "Camera access is restricted for Silent Gram.\n\nPlease go to Settings > General > Restrictions > Camera and set Silent Gram to ON.";
+ 
+ "AccessDenied.CameraDisabled" = "Camera access is globally restricted on your phone.\n\nPlease go to Settings > General > Restrictions and set Camera to ON";
+ 
+-"AccessDenied.PhotosAndVideos" = "Swiftgram needs access to your photo library to send photos and videos.\n\nPlease go to Settings > Privacy > Photos and set Swiftgram to ON.";
++"AccessDenied.PhotosAndVideos" = "Silent Gram needs access to your photo library to send photos and videos.\n\nPlease go to Settings > Privacy > Photos and set Silent Gram to ON.";
+ 
+-"AccessDenied.SaveMedia" = "Swiftgram needs access to your photo library to save photos and videos.\n\nPlease go to Settings > Privacy > Photos and set Swiftgram to ON.";
++"AccessDenied.SaveMedia" = "Silent Gram needs access to your photo library to save photos and videos.\n\nPlease go to Settings > Privacy > Photos and set Silent Gram to ON.";
+ 
+-"AccessDenied.PhotosRestricted" = "Photo access is restricted for Swiftgram.\n\nPlease go to Settings > General > Restrictions > Photos and set Swiftgram to ON.";
++"AccessDenied.PhotosRestricted" = "Photo access is restricted for Silent Gram.\n\nPlease go to Settings > General > Restrictions > Photos and set Silent Gram to ON.";
+ 
+-"AccessDenied.LocationDenied" = "Swiftgram needs access to your location so that you can share it with your contacts.\n\nPlease go to Settings > Privacy > Location Services and set Swiftgram to ON.";
++"AccessDenied.LocationDenied" = "Silent Gram needs access to your location so that you can share it with your contacts.\n\nPlease go to Settings > Privacy > Location Services and set Silent Gram to ON.";
+ 
+-"AccessDenied.LocationDisabled" = "Swiftgram needs access to your location so that you can share it with your contacts.\n\nPlease go to Settings > Privacy > Location Services and set it to ON.";
++"AccessDenied.LocationDisabled" = "Silent Gram needs access to your location so that you can share it with your contacts.\n\nPlease go to Settings > Privacy > Location Services and set it to ON.";
+ 
+-"AccessDenied.LocationTracking" = "Swiftgram needs access to your location to show you on the map.\n\nPlease go to Settings > Privacy > Location Services and set it to ON.";
++"AccessDenied.LocationTracking" = "Silent Gram needs access to your location to show you on the map.\n\nPlease go to Settings > Privacy > Location Services and set it to ON.";
+ 
+ "AccessDenied.Settings" = "Settings";
+ 
+@@ -1429,7 +1429,7 @@
+ "Conversation.FileDropbox" = "Dropbox";
+ 
+ "Conversation.FileOpenIn" = "Open in...";
+-"Conversation.FileHowToText" = "To share files of any type, open them on your %@ (e.g. in your browser), tap **Open in...** or the action button and choose Swiftgram.";
++"Conversation.FileHowToText" = "To share files of any type, open them on your %@ (e.g. in your browser), tap **Open in...** or the action button and choose Silent Gram.";
+ 
+ "Map.LocationTitle" = "Location";
+ "Map.OpenInMaps" = "Open in Maps";
+@@ -1465,7 +1465,7 @@
+ 
+ "ChangePhone.ErrorOccupied" = "The number %@ is already connected to a Telegram account. Please delete that account before migrating to the new number.";
+ 
+-"AccessDenied.LocationTracking" = "Swiftgram needs access to your location to show you on the map.\n\nPlease go to Settings > Privacy > Location Services and set it to ON.";
++"AccessDenied.LocationTracking" = "Silent Gram needs access to your location to show you on the map.\n\nPlease go to Settings > Privacy > Location Services and set it to ON.";
+ 
+ "PrivacySettings.AuthSessions" = "Active Sessions";
+ "AuthSessions.Title" = "Active Sessions";
+@@ -1575,7 +1575,7 @@
+ 
+ "Login.PhoneNumberHelp" = "Help";
+ "Login.EmailPhoneSubject" = "Invalid number %@";
+-"Login.EmailPhoneBody" = "I'm trying to use my mobile phone number: %@\nBut Swiftgram says it's invalid. Please help.\nAdditional Info: %@, %@.";
++"Login.EmailPhoneBody" = "I'm trying to use my mobile phone number: %@\nBut Silent Gram says it's invalid. Please help.\nAdditional Info: %@, %@.";
+ 
+ "SharedMedia.TitleLink" = "Shared Links";
+ "SharedMedia.EmptyLinksText" = "All links shared in this chat will appear here.";
+@@ -1872,7 +1872,7 @@
+ "Cache.ClearProgress" = "Please Wait...";
+ "Cache.ClearEmpty" = "Empty";
+ "Cache.ByPeerHeader" = "CHATS";
+-"Cache.Indexing" = "Swiftgram is calculating current cache size.\nThis can take a few minutes.";
++"Cache.Indexing" = "Silent Gram is calculating current cache size.\nThis can take a few minutes.";
+ 
+ "ExplicitContent.AlertTitle" = "Sorry";
+ "ExplicitContent.AlertChannel" = "You can't access this channel because it violates App Store rules.";
+@@ -2288,11 +2288,11 @@ Unused sets are archived when you add more.";
+ "Conversation.JumpToDate" = "Jump To Date";
+ "Conversation.AddToReadingList" = "Add to Reading List";
+ 
+-"AccessDenied.CallMicrophone" = "Swiftgram needs access to your microphone for voice calls.\n\nPlease go to Settings > Privacy > Microphone and set Swiftgram to ON.";
++"AccessDenied.CallMicrophone" = "Silent Gram needs access to your microphone for voice calls.\n\nPlease go to Settings > Privacy > Microphone and set Silent Gram to ON.";
+ 
+ "Call.EncryptionKey.Title" = "Encryption Key";
+ 
+-"Application.Name" = "Swiftgram";
++"Application.Name" = "Silent Gram";
+ "DialogList.Pin" = "Pin";
+ "DialogList.Unpin" = "Unpin";
+ "DialogList.PinLimitError" = "Sorry, you can pin no more than %@ chats to the top.";
+@@ -2342,7 +2342,7 @@ Unused sets are archived when you add more.";
+ "Calls.AddTab" = "Add Tab";
+ "Calls.NewCall" = "New Call";
+ 
+-"Calls.RatingTitle" = "Please rate the quality\nof your Swiftgram call";
++"Calls.RatingTitle" = "Please rate the quality\nof your Silent Gram call";
+ "Calls.SubmitRating" = "Submit";
+ 
+ "Call.Seconds_1" = "%@ second";
+@@ -2529,14 +2529,14 @@ Unused sets are archived when you add more.";
+ 
+ "Calls.RatingFeedback" = "Write a comment...";
+ 
+-"Call.StatusIncoming" = "Swiftgram Audio...";
++"Call.StatusIncoming" = "Silent Gram Audio...";
+ "Call.IncomingVoiceCall" = "Incoming Voice Call";
+ "Call.IncomingVideoCall" = "Incoming Video Call";
+ "Call.StatusRequesting" = "Contacting...";
+ "Call.StatusWaiting" = "Waiting...";
+ "Call.StatusRinging" = "Ringing...";
+ "Call.StatusConnecting" = "Connecting...";
+-"Call.StatusOngoing" = "Swiftgram Audio %@";
++"Call.StatusOngoing" = "Silent Gram Audio %@";
+ "Call.StatusEnded" = "Call Ended";
+ "Call.StatusFailed" = "Call Failed";
+ "Call.StatusBusy" = "Busy";
+@@ -2602,7 +2602,7 @@ Unused sets are archived when you add more.";
+ "Call.AudioRouteHeadphones" = "Headphones";
+ "Call.AudioRouteHide" = "Hide";
+ 
+-"Call.PhoneCallInProgressMessage" = "You can’t place a Swiftgram call if you’re already on a phone call.";
++"Call.PhoneCallInProgressMessage" = "You can’t place a Silent Gram call if you’re already on a phone call.";
+ "Call.RecordingDisabledMessage" = "Please end your call before recording a voice message.";
+ 
+ "Call.EmojiDescription" = "If these emoji are the same on %@'s screen, this call is 100%% secure.";
+@@ -2612,8 +2612,8 @@ Unused sets are archived when you add more.";
+ "Conversation.HoldForAudio" = "Hold to record audio. Tap to switch to video.";
+ "Conversation.HoldForVideo" = "Hold to record video. Tap to switch to audio.";
+ 
+-"UserInfo.TelegramCall" = "Swiftgram Call";
+-"UserInfo.TelegramVideoCall" = "Swiftgram Video Call";
++"UserInfo.TelegramCall" = "Silent Gram Call";
++"UserInfo.TelegramVideoCall" = "Silent Gram Video Call";
+ "UserInfo.PhoneCall" = "Phone Call";
+ 
+ "SharedMedia.CategoryMedia" = "Media";
+@@ -2621,8 +2621,8 @@ Unused sets are archived when you add more.";
+ "SharedMedia.CategoryLinks" = "Links";
+ "SharedMedia.CategoryOther" = "Audio";
+ 
+-"AccessDenied.VideoMessageCamera" = "Swiftgram needs access to your camera to send video messages.\n\nPlease go to Settings > Privacy > Camera and set Swiftgram to ON.";
+-"AccessDenied.VideoMessageMicrophone" = "Swiftgram needs access to your microphone to send video messages.\n\nPlease go to Settings > Privacy > Microphone and set Swiftgram to ON.";
++"AccessDenied.VideoMessageCamera" = "Silent Gram needs access to your camera to send video messages.\n\nPlease go to Settings > Privacy > Camera and set Silent Gram to ON.";
++"AccessDenied.VideoMessageMicrophone" = "Silent Gram needs access to your microphone to send video messages.\n\nPlease go to Settings > Privacy > Microphone and set Silent Gram to ON.";
+ 
+ "ChatSettings.AutomaticVideoMessageDownload" = "AUTOMATIC VIDEO MESSAGE DOWNLOAD";
+ 
+@@ -2648,7 +2648,7 @@ Unused sets are archived when you add more.";
+ 
+ "Privacy.PaymentsTitle" = "PAYMENTS";
+ "Privacy.PaymentsClearInfo" = "Clear payment & shipping info";
+-"Privacy.PaymentsClearInfoHelp" = "You can delete your shipping info and instruct all payment providers to remove your saved credit cards. Note that Swiftgram never stores your credit card data.";
++"Privacy.PaymentsClearInfoHelp" = "You can delete your shipping info and instruct all payment providers to remove your saved credit cards. Note that Silent Gram never stores your credit card data.";
+ "Privacy.PaymentsClear.PaymentInfo" = "Payment Info";
+ "Privacy.PaymentsClear.ShippingInfo" = "Shipping Info";
+ 
+@@ -2803,7 +2803,7 @@ Unused sets are archived when you add more.";
+ 
+ "Contacts.PhoneNumber" = "Phone Number";
+ "Contacts.AddPhoneNumber" = "Add %@";
+-"Contacts.ShareTelegram" = "Share Swiftgram";
++"Contacts.ShareTelegram" = "Share Silent Gram";
+ 
+ "Conversation.ViewChannel" = "VIEW CHANNEL";
+ "Conversation.ViewGroup" = "VIEW GROUP";
+@@ -2870,7 +2870,7 @@ Unused sets are archived when you add more.";
+ "Privacy.Calls.P2PHelp" = "Disabling peer-to-peer will relay all calls through Telegram servers to avoid revealing your IP address, but will slightly decrease audio quality.";
+ 
+ "Privacy.Calls.Integration" = "iOS Call Integration";
+-"Privacy.Calls.IntegrationHelp" = "iOS Call Integration shows Swiftgram calls on the lock screen and in the system's call history. If iCloud sync is enabled, your call history is shared with Apple.";
++"Privacy.Calls.IntegrationHelp" = "iOS Call Integration shows Silent Gram calls on the lock screen and in the system's call history. If iCloud sync is enabled, your call history is shared with Apple.";
+ 
+ "Call.ReportPlaceholder" = "What went wrong?";
+ "Call.ReportIncludeLog" = "Send technical information";
+@@ -2910,13 +2910,13 @@ Unused sets are archived when you add more.";
+ "SocksProxySetup.UseForCallsHelp" = "Proxy servers may degrade the quality of your calls.";
+ 
+ "InviteText.URL" = "https://apps.apple.com/app/id6471879502";
+-"InviteText.SingleContact" = "Hey, I'm using Swiftgram to chat. Join me! Download it here: %@";
+-"InviteText.ContactsCountText_1" = "Hey, I'm using Swiftgram to chat. Join me! Download it here: {url}";
+-"InviteText.ContactsCountText_2" = "Hey, I'm using Swiftgram to chat – and so are 2 of our other contacts. Join us! Download it here: {url}";
+-"InviteText.ContactsCountText_3_10" = "Hey, I'm using Swiftgram to chat – and so are %@ of our other contacts. Join us! Download it here: {url}";
+-"InviteText.ContactsCountText_any" = "Hey, I'm using Swiftgram to chat – and so are %@ of our other contacts. Join us! Download it here: {url}";
+-"InviteText.ContactsCountText_many" = "Hey, I'm using Swiftgram to chat – and so are %@ of our other contacts. Join us! Download it here: {url}";
+-"InviteText.ContactsCountText_0" = "Hey, I'm using Swiftgram to chat. Join me! Download it here: {url}";
++"InviteText.SingleContact" = "Hey, I'm using Silent Gram to chat. Join me! Download it here: %@";
++"InviteText.ContactsCountText_1" = "Hey, I'm using Silent Gram to chat. Join me! Download it here: {url}";
++"InviteText.ContactsCountText_2" = "Hey, I'm using Silent Gram to chat – and so are 2 of our other contacts. Join us! Download it here: {url}";
++"InviteText.ContactsCountText_3_10" = "Hey, I'm using Silent Gram to chat – and so are %@ of our other contacts. Join us! Download it here: {url}";
++"InviteText.ContactsCountText_any" = "Hey, I'm using Silent Gram to chat – and so are %@ of our other contacts. Join us! Download it here: {url}";
++"InviteText.ContactsCountText_many" = "Hey, I'm using Silent Gram to chat – and so are %@ of our other contacts. Join us! Download it here: {url}";
++"InviteText.ContactsCountText_0" = "Hey, I'm using Silent Gram to chat. Join me! Download it here: {url}";
+ 
+ "Invite.LargeRecipientsCountWarning" = "Please note that it may take some time for your device to send all of these invitations";
+ 
+@@ -3072,12 +3072,12 @@ Unused sets are archived when you add more.";
+ 
+ "NotificationSettings.ContactJoined" = "New Contacts";
+ 
+-"AccessDenied.LocationAlwaysDenied" = "If you'd like to share your Live Location with friends, Swiftgram needs location access when the app is in the background.\n\nPlease go to Settings > Privacy > Location Services and set Telegram to Always.";
++"AccessDenied.LocationAlwaysDenied" = "If you'd like to share your Live Location with friends, Silent Gram needs location access when the app is in the background.\n\nPlease go to Settings > Privacy > Location Services and set Telegram to Always.";
+ 
+ "UserInfo.UnblockConfirmation" = "Unblock %@?";
+ 
+ "Login.BannedPhoneSubject" = "Banned phone number: %@";
+-"Login.BannedPhoneBody" = "I'm trying to use my mobile phone number: %@\nBut Swiftgram says it's banned. Please help.";
++"Login.BannedPhoneBody" = "I'm trying to use my mobile phone number: %@\nBut Silent Gram says it's banned. Please help.";
+ 
+ "Conversation.StopLiveLocation" = "Stop Sharing";
+ 
+@@ -3160,16 +3160,16 @@ Unused sets are archived when you add more.";
+ 
+ "Privacy.PaymentsClearInfoDoneHelp" = "Payment & shipping info cleared.";
+ 
+-"InfoPlist.NSContactsUsageDescription" = "Swiftgram will continuously upload your contacts to Telegram's heavily encrypted cloud servers to let you connect with your friends across all your devices.";
+-"InfoPlist.NSLocationWhenInUseUsageDescription" = "When you send your location to your friends, Swiftgram needs access to show them a map.";
++"InfoPlist.NSContactsUsageDescription" = "Silent Gram will continuously upload your contacts to Telegram's heavily encrypted cloud servers to let you connect with your friends across all your devices.";
++"InfoPlist.NSLocationWhenInUseUsageDescription" = "When you send your location to your friends, Silent Gram needs access to show them a map.";
+ "InfoPlist.NSCameraUsageDescription" = "We need this so that you can take and share photos and videos, as well as make video calls.";
+ "InfoPlist.NSPhotoLibraryUsageDescription" = "We need this so that you can share photos and videos from your photo library.";
+ "InfoPlist.NSPhotoLibraryAddUsageDescription" = "We need this so that you can save photos and videos to your photo library.";
+ "InfoPlist.NSMicrophoneUsageDescription" = "We need this so that you can record and share voice messages and videos with sound.";
+ "InfoPlist.NSSiriUsageDescription" = "You can use Siri to send messages.";
+-"InfoPlist.NSLocationAlwaysAndWhenInUseUsageDescription" = "When you choose to share your Live Location with friends in a chat, Swiftgram needs background access to your location to keep them updated for the duration of the live sharing.";
+-"InfoPlist.NSLocationAlwaysUsageDescription" = "When you choose to share your live location with friends in a chat, Swiftgram needs background access to your location to keep them updated for the duration of the live sharing. You also need this to send locations from an Apple Watch.";
+-"InfoPlist.NSLocationWhenInUseUsageDescription" = "When you send your location to your friends, Swiftgram needs access to show them a map.";
++"InfoPlist.NSLocationAlwaysAndWhenInUseUsageDescription" = "When you choose to share your Live Location with friends in a chat, Silent Gram needs background access to your location to keep them updated for the duration of the live sharing.";
++"InfoPlist.NSLocationAlwaysUsageDescription" = "When you choose to share your live location with friends in a chat, Silent Gram needs background access to your location to keep them updated for the duration of the live sharing. You also need this to send locations from an Apple Watch.";
++"InfoPlist.NSLocationWhenInUseUsageDescription" = "When you send your location to your friends, Silent Gram needs access to show them a map.";
+ "InfoPlist.NSFaceIDUsageDescription" = "You can use Face ID to unlock the app.";
+ 
+ "Privacy.Calls.P2PNever" = "Never";
+@@ -3315,7 +3315,7 @@ Unused sets are archived when you add more.";
+ 
+ "DialogList.AdLabel" = "Proxy Sponsor";
+ "DialogList.AdNoticeAlert" = "The proxy you are using displays a sponsored channel in your chat list.";
+-"SocksProxySetup.AdNoticeHelp" = "This proxy may display a sponsored channel in your chat list. This doesn't reveal your Swiftgram traffic.";
++"SocksProxySetup.AdNoticeHelp" = "This proxy may display a sponsored channel in your chat list. This doesn't reveal your Silent Gram traffic.";
+ 
+ "SocksProxySetup.ShareProxyList" = "Share Proxy List";
+ 
+@@ -3593,9 +3593,9 @@ Unused sets are archived when you add more.";
+ 
+ "Passport.NotLoggedInMessage" = "Please log in to your account to use Telegram Passport";
+ 
+-"Update.Title" = "Swiftgram Update";
+-"Update.AppVersion" = "Swiftgram %@";
+-"Update.UpdateApp" = "Update Swiftgram";
++"Update.Title" = "Silent Gram Update";
++"Update.AppVersion" = "Silent Gram %@";
++"Update.UpdateApp" = "Update Silent Gram";
+ "Update.Skip" = "Skip";
+ 
+ "ReportPeer.ReasonCopyright" = "Copyright";
+@@ -3786,8 +3786,8 @@ Unused sets are archived when you add more.";
+ 
+ "SocksProxySetup.PasteFromClipboard" = "Paste From Clipboard";
+ 
+-"Share.AuthTitle" = "Log in to Swiftgram";
+-"Share.AuthDescription" = "Open Swiftgram and log in to share.";
++"Share.AuthTitle" = "Log in to Silent Gram";
++"Share.AuthDescription" = "Open Silent Gram and log in to share.";
+ 
+ "Notifications.DisplayNamesOnLockScreen" = "Names on lock-screen";
+ "Notifications.DisplayNamesOnLockScreenInfoWithLink" = "Display names in notifications when the device is locked. To disable, make sure that \"Show Previews\" is also set to \"When Unlocked\" or \"Never\" in [iOS Settings]";
+@@ -3874,7 +3874,7 @@ Unused sets are archived when you add more.";
+ "InstantPage.TapToOpenLink" = "Tap to open the link:";
+ "InstantPage.RelatedArticleAuthorAndDateTitle" = "%1$@ • %2$@";
+ 
+-"AuthCode.Alert" = "Your login code is %@. Enter it in the Swiftgram app where you are trying to log in.\n\nDo not give this code to anyone.";
++"AuthCode.Alert" = "Your login code is %@. Enter it in the Silent Gram app where you are trying to log in.\n\nDo not give this code to anyone.";
+ "Login.CheckOtherSessionMessages" = "Check your Telegram messages";
+ "Login.SendCodeViaSms" = "Get the code via SMS";
+ "Login.SendCodeViaCall" = "Call me to dictate the code";
+@@ -3885,7 +3885,7 @@ Unused sets are archived when you add more.";
+ "Login.CodeExpired" = "Code expired, please login again.";
+ "Login.CancelSignUpConfirmation" = "Do you want to stop the registration process?";
+ 
+-"Passcode.AppLockedAlert" = "Swiftgram\nLocked";
++"Passcode.AppLockedAlert" = "Silent Gram\nLocked";
+ 
+ "ChatList.ReadAll" = "Read All";
+ "ChatList.Read" = "Read";
+@@ -3916,7 +3916,7 @@ Unused sets are archived when you add more.";
+ "Permissions.NotificationsAllowInSettings.v0" = "Turn ON in Settings";
+ 
+ "Permissions.CellularDataTitle.v0" = "Enable Cellular Data";
+-"Permissions.CellularDataText.v0" = "Don't worry, Swiftgram keeps network usage to a minimum. You can further control this in Settings > Data and Storage.";
++"Permissions.CellularDataText.v0" = "Don't worry, Silent Gram keeps network usage to a minimum. You can further control this in Settings > Data and Storage.";
+ "Permissions.CellularDataAllowInSettings.v0" = "Turn ON in Settings";
+ 
+ "Permissions.SiriTitle.v0" = "Turn ON Siri";
+@@ -3927,7 +3927,7 @@ Unused sets are archived when you add more.";
+ "Permissions.PrivacyPolicy" = "Privacy Policy";
+ 
+ "Contacts.PermissionsTitle" = "Access to Contacts";
+-"Contacts.PermissionsText" = "Please allow Swiftgram access to your phonebook to seamlessly find all your friends.";
++"Contacts.PermissionsText" = "Please allow Silent Gram access to your phonebook to seamlessly find all your friends.";
+ "Contacts.PermissionsAllow" = "Allow Access";
+ "Contacts.PermissionsAllowInSettings" = "Allow in Settings";
+ "Contacts.PermissionsSuppressWarningTitle" = "Keep contacts disabled?";
+@@ -4141,7 +4141,7 @@ Unused sets are archived when you add more.";
+ "Undo.DeletedChannel" = "Deleted channel";
+ "Undo.DeletedGroup" = "Deleted group";
+ 
+-"AccessDenied.Wallpapers" = "Swiftgram needs access to your photo library to set a custom chat background.\n\nPlease go to Settings > Privacy > Photos and set Swiftgram to ON.";
++"AccessDenied.Wallpapers" = "Silent Gram needs access to your photo library to set a custom chat background.\n\nPlease go to Settings > Privacy > Photos and set Silent Gram to ON.";
+ 
+ "Conversation.ChatBackground" = "Chat Background";
+ "Conversation.ViewBackground" = "VIEW BACKGROUND";
+@@ -5067,11 +5067,11 @@ Sorry for the inconvenience.";
+ "Group.ErrorSupergroupConversionNotPossible" = "Sorry, you are a member of too many groups and channels. Please leave some before creating a new one.";
+ 
+ "ClearCache.StorageTitle" = "%@ STORAGE";
+-"ClearCache.StorageCache" = "Swiftgram Cache";
+-"ClearCache.StorageServiceFiles" = "Swiftgram Service Files";
++"ClearCache.StorageCache" = "Silent Gram Cache";
++"ClearCache.StorageServiceFiles" = "Silent Gram Service Files";
+ "ClearCache.StorageOtherApps" = "Other Apps";
+ "ClearCache.StorageFree" = "Free";
+-"ClearCache.ClearCache" = "Clear Swiftgram Cache";
++"ClearCache.ClearCache" = "Clear Silent Gram Cache";
+ "ClearCache.Clear" = "Clear";
+ "ClearCache.Forever" = "Forever";
+ 
+@@ -5704,7 +5704,7 @@ Sorry for the inconvenience.";
+ "Call.Audio" = "audio";
+ "Call.AudioRouteMute" = "Mute Yourself";
+ 
+-"AccessDenied.VideoCallCamera" = "Swiftgram needs access to your camera to make video calls.\n\nPlease go to Settings > Privacy > Camera and set Swiftgram to ON.";
++"AccessDenied.VideoCallCamera" = "Silent Gram needs access to your camera to make video calls.\n\nPlease go to Settings > Privacy > Camera and set Silent Gram to ON.";
+ 
+ "Call.AccountIsLoggedOnCurrentDevice" = "Sorry, you can't call %@ because that account is logged in to Telegram on the device you're using for the call.";
+ 
+@@ -5858,7 +5858,7 @@ Sorry for the inconvenience.";
+ "Conversation.EditingPhotoPanelTitle" = "Edit Photo";
+ 
+ "Media.LimitedAccessTitle" = "Limited Access to Media";
+-"Media.LimitedAccessText" = "You've given Swiftgram access only to select number of photos.";
++"Media.LimitedAccessText" = "You've given Silent Gram access only to select number of photos.";
+ "Media.LimitedAccessManage" = "Manage";
+ "Media.LimitedAccessSelectMore" = "Select More Photos...";
+ "Media.LimitedAccessChangeSettings" = "Change Settings";
+@@ -6202,7 +6202,7 @@ Sorry for the inconvenience.";
+ "Message.ImportedDateFormat" = "%1$@, %2$@ Imported %3$@";
+ 
+ "ChatImportActivity.Title" = "Importing Chat";
+-"ChatImportActivity.OpenApp" = "Open Swiftgram";
++"ChatImportActivity.OpenApp" = "Open Silent Gram";
+ "ChatImportActivity.Retry" = "Retry";
+ "ChatImportActivity.InProgress" = "Please keep this window open\nuntil the import is completed.";
+ "ChatImportActivity.ErrorNotAdmin" = "You need to be an admin in the group to import messages.";
+@@ -6354,7 +6354,7 @@ Sorry for the inconvenience.";
+ "Widget.UpdatedAt" = "Updated {}";
+ 
+ "Intents.ErrorLockedTitle" = "Locked";
+-"Intents.ErrorLockedText" = "Open Swiftgram and enter passcode to edit widget.";
++"Intents.ErrorLockedText" = "Open Silent Gram and enter passcode to edit widget.";
+ 
+ "Conversation.GigagroupDescription" = "Only admins can send messages in this group.";
+ 
+@@ -6660,7 +6660,7 @@ Sorry for the inconvenience.";
+ "ScheduledIn.Years_any" = "%@ years";
+ "ScheduledIn.Months_many" = "%@ years";
+ 
+-"Checkout.PaymentLiabilityAlert" = "Neither Swiftgram/Telegram, nor {target} will have access to your credit card information. Credit card details will be handled only by the payment system, {payment_system}.\n\nPayments will go directly to the developer of {target}. Swiftgram/Telegram cannot provide any guarantees, so proceed at your own risk. In case of problems, please contact the developer of {target} or your bank.";
++"Checkout.PaymentLiabilityAlert" = "Neither Silent Gram/Telegram, nor {target} will have access to your credit card information. Credit card details will be handled only by the payment system, {payment_system}.\n\nPayments will go directly to the developer of {target}. Silent Gram/Telegram cannot provide any guarantees, so proceed at your own risk. In case of problems, please contact the developer of {target} or your bank.";
+ 
+ "Checkout.OptionalTipItem" = "Tip (Optional)";
+ "Checkout.TipItem" = "Tip";
+@@ -6961,7 +6961,7 @@ Sorry for the inconvenience.";
+ 
+ "SponsoredMessageMenu.Info" = "What are sponsored\nmessages?";
+ "SponsoredMessageInfoScreen.Title" = "What are sponsored messages?";
+-"SponsoredMessageInfoScreen.MarkdownText" = "Unlike other apps, Swiftgram and Telegram never use your private data to target ads. [Learn more in the Privacy Policy](https://telegram.org/privacy#5-6-no-ads-based-on-user-data)\nYou are seeing this message only because someone chose this public one-to many channel as a space to promote their messages. This means that no user data is mined or analyzed to display ads, and every user viewing a channel on Telegram sees the same sponsored message.\n\nUnline other apps, Telegram doesn't track whether you tapped on a sponsored message and doesn't profile you based on your activity. We also prevent external links in sponsored messages to ensure that third parties can't spy on our users. We believe that everyone has the right to privacy, and technological platforms should respect that.\n\nTelegram offers free and unlimited service to hundreds of millions of users, which involves significant server and traffic costs. In order to remain independent and stay true to its values, Telegram developed a paid tool to promote messages with user privacy in mind. We welcome responsible adverticers at:\n[url]\nAds should no longer be synonymous with abuse of user privacy. Let us redefine how a tech compony should operate — together.";
++"SponsoredMessageInfoScreen.MarkdownText" = "Unlike other apps, Silent Gram and Telegram never use your private data to target ads. [Learn more in the Privacy Policy](https://telegram.org/privacy#5-6-no-ads-based-on-user-data)\nYou are seeing this message only because someone chose this public one-to many channel as a space to promote their messages. This means that no user data is mined or analyzed to display ads, and every user viewing a channel on Telegram sees the same sponsored message.\n\nUnline other apps, Telegram doesn't track whether you tapped on a sponsored message and doesn't profile you based on your activity. We also prevent external links in sponsored messages to ensure that third parties can't spy on our users. We believe that everyone has the right to privacy, and technological platforms should respect that.\n\nTelegram offers free and unlimited service to hundreds of millions of users, which involves significant server and traffic costs. In order to remain independent and stay true to its values, Telegram developed a paid tool to promote messages with user privacy in mind. We welcome responsible adverticers at:\n[url]\nAds should no longer be synonymous with abuse of user privacy. Let us redefine how a tech compony should operate — together.";
+ "SponsoredMessageInfo.Action" = "Learn More";
+ "SponsoredMessageInfo.Url" = "https://telegram.org/ads";
+ 
+@@ -7330,8 +7330,8 @@ Sorry for the inconvenience.";
+ "Contacts.QrCode.MyCode" = "My QR Code";
+ "Contacts.QrCode.NoCodeFound" = "No valid QR code found in the image. Please try again.";
+ 
+-"AccessDenied.QrCode" = "Swiftgram needs access to your photo library to scan QR codes.\n\nOpen your device's Settings > Privacy > Photos and set Swiftgram to ON.";
+-"AccessDenied.QrCamera" = "Swiftgram needs access to your camera to scan QR codes.\n\nOpen your device's Settings > Privacy > Camera and set Swiftgram to ON.";
++"AccessDenied.QrCode" = "Silent Gram needs access to your photo library to scan QR codes.\n\nOpen your device's Settings > Privacy > Photos and set Silent Gram to ON.";
++"AccessDenied.QrCamera" = "Silent Gram needs access to your camera to scan QR codes.\n\nOpen your device's Settings > Privacy > Camera and set Silent Gram to ON.";
+ 
+ "Share.ShareToInstagramStories" = "Share to Instagram Stories";
+ 
+@@ -7444,8 +7444,8 @@ Sorry for the inconvenience.";
+ "Attachment.MediaAccessText" = "Share an unlimited number of photos and videos of up to 2 GB each.";
+ "Attachment.MediaAccessStoryText" = "Share an unlimited number of photos and videos of up to 2 GB each.";
+ 
+-"Attachment.LimitedMediaAccessText" = "You have limited Swiftgram from accessing all of your photos.";
+-"Attachment.CameraAccessText" = "Swiftgram needs camera access so that you can take photos and videos.";
++"Attachment.LimitedMediaAccessText" = "You have limited Silent Gram from accessing all of your photos.";
++"Attachment.CameraAccessText" = "Silent Gram needs camera access so that you can take photos and videos.";
+ "Attachment.Manage" = "Manage";
+ 
+ "Attachment.OpenSettings" = "Go to Settings";
+@@ -7489,8 +7489,8 @@ Sorry for the inconvenience.";
+ "LiveStream.ViewerCount_any" = "%@ viewers";
+ "LiveStream.Watching" = "watching";
+ 
+-"LiveStream.NoSignalAdminText" = "Oops! Swiftgram doesn't see any stream\ncoming from your streaming app.\n\nPlease make sure you entered the right Server\nURL and Stream Key in your app.";
+-"LiveStream.NoSignalUserText" = "%@ is currently not broadcasting live\nstream data to Swiftgram.";
++"LiveStream.NoSignalAdminText" = "Oops! Silent Gram doesn't see any stream\ncoming from your streaming app.\n\nPlease make sure you entered the right Server\nURL and Stream Key in your app.";
++"LiveStream.NoSignalUserText" = "%@ is currently not broadcasting live\nstream data to Silent Gram.";
+ 
+ "LiveStream.ViewCredentials" = "View Stream Key";
+ 
+@@ -7579,7 +7579,7 @@ Sorry for the inconvenience.";
+ "Notifications.UploadError.TooLong.Title" = "%@ is too long.";
+ "Notifications.UploadError.TooLong.Text" = "Duration must be less than %@.";
+ "Notifications.UploadSuccess.Title" = "Sound Added";
+-"Notifications.UploadSuccess.Text" = "The sound **%@** was added to your Swiftgram tones.";
++"Notifications.UploadSuccess.Text" = "The sound **%@** was added to your Silent Gram tones.";
+ "Notifications.SaveSuccess.Text" = "You can now use this sound as a notification tone in your [custom notification settings]().";
+ 
+ "Conversation.DeleteTimer.SetupTitle" = "Auto-Delete After...";
+@@ -7679,7 +7679,7 @@ Sorry for the inconvenience.";
+ "Premium.AppIcons.Proceed" = "Unlock Premium Icons";
+ "Premium.NoAds.Proceed" = "About Telegram Premium";
+ 
+-"AccessDenied.LocationPreciseDenied" = "To share your specific location in this chat, please go to Settings > Privacy > Location Services > Swiftgram and set Precise Location to On.";
++"AccessDenied.LocationPreciseDenied" = "To share your specific location in this chat, please go to Settings > Privacy > Location Services > Silent Gram and set Precise Location to On.";
+ 
+ "Chat.MultipleTypingPair" = "%@ and %@";
+ "Chat.MultipleTypingMore" = "%@ and %@ others";
+@@ -8104,7 +8104,7 @@ Sorry for the inconvenience.";
+ "Login.Edit" = "Edit";
+ "Login.Yes" = "Yes";
+ 
+-"Checkout.PaymentLiabilityBothAlert" = "Swiftgram/Telegram will not have access to your credit card information. Credit card details will be handled only by the payment system, {target}.\n\nPayments will go directly to the developer of {target}. Swiftgram/Telegram cannot provide any guarantees, so proceed at your own risk. In case of problems, please contact the developer of {target} or your bank.";
++"Checkout.PaymentLiabilityBothAlert" = "Silent Gram/Telegram will not have access to your credit card information. Credit card details will be handled only by the payment system, {target}.\n\nPayments will go directly to the developer of {target}. Silent Gram/Telegram cannot provide any guarantees, so proceed at your own risk. In case of problems, please contact the developer of {target} or your bank.";
+ 
+ "Settings.ChangeProfilePhoto" = "Change Profile Photo";
+ 
+@@ -8665,7 +8665,7 @@ Sorry for the inconvenience.";
+ 
+ "StorageManagement.DescriptionCleared" = "All media can be re-downloaded from the Telegram cloud if you need it again.";
+ "StorageManagement.DescriptionChatUsage" = "This chat uses %1$@% of your Telegram cache.";
+-"StorageManagement.DescriptionAppUsage" = "Swiftgram uses %1$@% of your free disk space.";
++"StorageManagement.DescriptionAppUsage" = "Silent Gram uses %1$@% of your free disk space.";
+ 
+ "StorageManagement.ClearAll" = "Clear Entire Cache";
+ "StorageManagement.ClearSelected" = "Clear Selected";
+@@ -9073,7 +9073,7 @@ Sorry for the inconvenience.";
+ "PowerSavingScreen.OptionAutoplayEmojiText" = "Loop animated emoji in messages, reactions, statuses.";
+ 
+ "PowerSavingScreen.OptionAutoplayEffectsTitle" = "Interface Effects";
+-"PowerSavingScreen.OptionAutoplayEffectsText" = "Various effects and animations that make Swiftgram look amazing.";
++"PowerSavingScreen.OptionAutoplayEffectsText" = "Various effects and animations that make Silent Gram look amazing.";
+ 
+ "PowerSavingScreen.OptionBackgroundTitle" = "Extended Background Time";
+ "PowerSavingScreen.OptionBackgroundText" = "Update chats faster when switching between apps.";
+@@ -9434,7 +9434,7 @@ Sorry for the inconvenience.";
+ "ChatList.PremiumRestoreDiscountTitle" = "Get Premium back with up to %@ off";
+ "ChatList.PremiumRestoreDiscountText" = "Your Telegram Premium has recently expired. Tap here to extend it.";
+ 
+-"Login.ErrorAppOutdated" = "Please update Swiftgram to the latest version to log in.";
++"Login.ErrorAppOutdated" = "Please update Silent Gram to the latest version to log in.";
+ 
+ "Login.GetCodeViaFragment" = "Get a code via Fragment";
+ 
+@@ -9603,8 +9603,8 @@ Sorry for the inconvenience.";
+ "Story.HeaderEdited" = "edited";
+ "Story.CaptionShowMore" = "Show more";
+ 
+-"Story.UnsupportedText" = "This story is not supported by\nyour version of Swiftgram.";
+-"Story.UnsupportedAction" = "Update Swiftgram";
++"Story.UnsupportedText" = "This story is not supported by\nyour version of Silent Gram.";
++"Story.UnsupportedAction" = "Update Silent Gram";
+ 
+ "Story.ScreenshotBlockedTitle" = "Screenshot Blocked";
+ "Story.ScreenshotBlockedText" = "The story you tried to take a\nscreenshot of is protected from\ncopying by its creator.";
+@@ -9679,7 +9679,7 @@ Sorry for the inconvenience.";
+ "Story.Camera.SwipeLeftRelease" = "Release to lock";
+ "Story.Camera.SwipeRightToFlip" = "Swipe right to flip";
+ 
+-"Story.Camera.AccessPlaceholderTitle" = "Allow Swiftgram to access your camera and microphone";
++"Story.Camera.AccessPlaceholderTitle" = "Allow Silent Gram to access your camera and microphone";
+ "Story.Camera.AccessPlaceholderText" = "This lets you share photos and record videos.";
+ "Story.Camera.AccessOpenSettings" = "Open Settings";
+ 
+@@ -9987,7 +9987,7 @@ Sorry for the inconvenience.";
+ "Gallery.ViewOnceVideoTooltip" = "This video can only be viewed once.";
+ 
+ "WebApp.DisclaimerTitle" = "Terms of Use";
+-"WebApp.DisclaimerText" = "You are about to use a mini app operated by an independent party not affiliated with Swiftgram/Telegram. You must agree to the Terms of Use of mini apps to continue.";
++"WebApp.DisclaimerText" = "You are about to use a mini app operated by an independent party not affiliated with Silent Gram/Telegram. You must agree to the Terms of Use of mini apps to continue.";
+ "WebApp.DisclaimerAgree" = "I agree to the [Terms of Use]()";
+ "WebApp.DisclaimerContinue" = "Continue";
+ "WebApp.Disclaimer_URL" = "https://telegram.org/tos/mini-apps";
 diff --git a/submodules/TelegramCore/Sources/Account/AccountManager.swift b/submodules/TelegramCore/Sources/Account/AccountManager.swift
 index c88796e5..7bf18eba 100644
 --- a/submodules/TelegramCore/Sources/Account/AccountManager.swift
@@ -579,6 +1490,28 @@ index 00000000..aa41c4d9
 +        return []
 +    }
 +}
+diff --git a/submodules/TelegramCore/Sources/TelegramEngine/Messages/AdMessages.swift b/submodules/TelegramCore/Sources/TelegramEngine/Messages/AdMessages.swift
+index a8e5b04b..ff510795 100644
+--- a/submodules/TelegramCore/Sources/TelegramEngine/Messages/AdMessages.swift
++++ b/submodules/TelegramCore/Sources/TelegramEngine/Messages/AdMessages.swift
+@@ -2,6 +2,7 @@ import Foundation
+ import Postbox
+ import SwiftSignalKit
+ internal import TelegramApi
++import SGSimpleSettings
+ 
+ private class AdMessagesHistoryContextImpl {
+     final class CachedMessage: Equatable, Codable {
+@@ -491,7 +492,8 @@ private class AdMessagesHistoryContextImpl {
+             return transaction.getPeer(peerId).flatMap(apiInputPeer)
+         }
+         |> mapToSignal { inputPeer -> Signal<(interPostInterval: Int32?, startDelay: Int32?, betweenDelay: Int32?, messages: [Message]), NoError> in
+-            guard let inputPeer else {
++            // MARK: Silent Gram — без рекламы в каналах
++            guard let inputPeer, !SGSimpleSettings.shared.hideSponsoredMessages else {
+                 return .single((nil, nil, nil, []))
+             }
+             var flags: Int32 = 0
 diff --git a/submodules/TelegramCore/Sources/TelegramEngine/Messages/Stories.swift b/submodules/TelegramCore/Sources/TelegramEngine/Messages/Stories.swift
 index 9878c79e..5c0a7aed 100644
 --- a/submodules/TelegramCore/Sources/TelegramEngine/Messages/Stories.swift
@@ -602,6 +1535,58 @@ index 9878c79e..5c0a7aed 100644
      return postbox.transaction { transaction -> (Peer, Peer?)? in
          if let peer = transaction.getPeer(toPeerId) {
              if let forwardInfo = forwardInfo {
+diff --git a/submodules/TelegramCore/Sources/UpdatePeers.swift b/submodules/TelegramCore/Sources/UpdatePeers.swift
+index d90af5f2..c9c5d237 100644
+--- a/submodules/TelegramCore/Sources/UpdatePeers.swift
++++ b/submodules/TelegramCore/Sources/UpdatePeers.swift
+@@ -1,6 +1,7 @@
+ import Foundation
+ import Postbox
+ internal import TelegramApi
++import SGSimpleSettings
+ 
+ func isPeerHiddenByCollapsedCommunity(transaction: Transaction, peerId: PeerId, peer: Peer? = nil) -> Bool {
+     if let channel = (peer ?? transaction.getPeer(peerId)) as? TelegramChannel, let linkedCommunityId = channel.linkedCommunityId {
+@@ -19,6 +20,9 @@ func channelShouldBeExcludedFromChatList(_ channel: TelegramChannel, isHiddenByC
+     switch channel.participationStatus {
+     case .member:
+         return isHiddenByCollapsedCommunity()
++    case .kicked:
++        // MARK: Silent Gram — чат, из которого забанили, остаётся в списке
++        return !SGSimpleSettings.shared.saveBannedChats
+     default:
+         return true
+     }
+@@ -36,6 +40,9 @@ func shouldExcludePeerFromChatList(transaction: Transaction, peerId: PeerId, pee
+         switch group.membership {
+         case .Member:
+             return false
++        case .Removed:
++            // MARK: Silent Gram
++            return !SGSimpleSettings.shared.saveBannedChats
+         default:
+             return true
+         }
+@@ -394,6 +401,9 @@ public func updatePeersCustom(transaction: Transaction, peers: [Peer], update: (
+                         switch group.membership {
+                             case .Member:
+                                 updatePeerChatInclusionWithMinTimestamp(transaction: transaction, id: peerId, minTimestamp: group.creationDate, forceRootGroupIfNotExists: false, peer: group)
++                            case .Removed where SGSimpleSettings.shared.saveBannedChats:
++                                // MARK: Silent Gram
++                                updatePeerChatInclusionWithMinTimestamp(transaction: transaction, id: peerId, minTimestamp: group.creationDate, forceRootGroupIfNotExists: false, peer: group)
+                             default:
+                                 transaction.updatePeerChatListInclusion(peerId, inclusion: .notIncluded)
+                         }
+@@ -407,6 +417,9 @@ public func updatePeersCustom(transaction: Transaction, peers: [Peer], update: (
+                         switch channel.participationStatus {
+                         case .member:
+                             updatePeerChatInclusionWithMinTimestamp(transaction: transaction, id: peerId, minTimestamp: channel.creationDate, forceRootGroupIfNotExists: true, peer: channel)
++                        case .kicked where SGSimpleSettings.shared.saveBannedChats:
++                            // MARK: Silent Gram
++                            updatePeerChatInclusionWithMinTimestamp(transaction: transaction, id: peerId, minTimestamp: channel.creationDate, forceRootGroupIfNotExists: false, peer: channel)
+                         case .left:
+                             transaction.updatePeerChatListInclusion(peerId, inclusion: .notIncluded)
+                         case .kicked where channel.creationDate == 0:
 diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/StringForMessageTimestampStatus.swift b/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/StringForMessageTimestampStatus.swift
 index ad79b915..4f0a8f14 100644
 --- a/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/StringForMessageTimestampStatus.swift
@@ -621,6 +1606,28 @@ index ad79b915..4f0a8f14 100644
      var authorTitle: String?
      if let author = message.author, case .user = author {
          if let peer = message.peers[message.id.peerId] as? TelegramChannel, case .broadcast = peer.info {
+diff --git a/submodules/TelegramUI/Sources/AppDelegate.swift b/submodules/TelegramUI/Sources/AppDelegate.swift
+index 3d5e8534..0fb47381 100644
+--- a/submodules/TelegramUI/Sources/AppDelegate.swift
++++ b/submodules/TelegramUI/Sources/AppDelegate.swift
+@@ -1499,16 +1499,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
+                     // MARK: Swiftgram
+                     updateSGWebSettingsInteractivelly(context: context.context)
+                     updateSGGHSettingsInteractivelly(context: context.context)
+-                    let _ = (context.context.sharedContext.presentationData.start(next: { presentationData in
+-                        SGLocalizationManager.shared.downloadLocale(presentationData.strings.baseLanguageCode)
+-                    }))
+-                    if #available(iOS 13.0, *) {
+-                        let _ = Task {
+-                            let primaryContext = await self.getPrimaryContext(anyContext: context.context)
+-                            SGLogger.shared.log("SGIAP", "Verifying Status \(primaryContext.sharedContext.immediateSGStatus.status) for: \(primaryContext.account.peerId.id._internalGetInt64Value())")
+-                            let _ = await self.fetchSGStatus(primaryContext: primaryContext)
+-                        }
+-                    }
++                    // MARK: Silent Gram — свои строки и бесплатный Pro: не тянем локализацию и статус с серверов Swiftgram
+                     //
+                     
+                 }))
 diff --git a/submodules/TelegramUI/Sources/ChatInterfaceStateContextMenus.swift b/submodules/TelegramUI/Sources/ChatInterfaceStateContextMenus.swift
 index 166511f2..3d3b81c2 100644
 --- a/submodules/TelegramUI/Sources/ChatInterfaceStateContextMenus.swift
