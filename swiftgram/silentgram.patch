@@ -19,7 +19,7 @@ index 23a99c55..63bc18b6 100644
      }))
      return items
 diff --git a/Swiftgram/SGSettingsUI/Sources/SGSettingsController.swift b/Swiftgram/SGSettingsUI/Sources/SGSettingsController.swift
-index b5b41d9f..0f4f999c 100644
+index b5b41d9f..12088de8 100644
 --- a/Swiftgram/SGSettingsUI/Sources/SGSettingsController.swift
 +++ b/Swiftgram/SGSettingsUI/Sources/SGSettingsController.swift
 @@ -27,6 +27,7 @@ import UndoUI
@@ -56,7 +56,7 @@ index b5b41d9f..0f4f999c 100644
 +    entries.append(.notice(id: id.count, section: .ghost, text: "Собеседники не увидят, что ты в сети, что ты печатаешь и что прочитал сообщения."))
 +    entries.append(.toggle(id: id.count, section: .ghost, settingName: .saveDeletedMessages, value: SGSimpleSettings.shared.saveDeletedMessages, text: "Сохранять удалённые сообщения", enabled: true))
 +    entries.append(.toggle(id: id.count, section: .ghost, settingName: .saveEditHistory, value: SGSimpleSettings.shared.saveEditHistory, text: "Сохранять историю правок", enabled: true))
-+    entries.append(.notice(id: id.count, section: .ghost, text: "Удалённые сообщения остаются в чате с пометкой «🗑 Удалено», у изменённых внизу видно, что было раньше. Работает для сообщений, которые успели загрузиться в приложение."))
++    entries.append(.notice(id: id.count, section: .ghost, text: "Удалённые сообщения остаются в чате со значком 🗑 рядом со временем, у изменённых внизу видно, что было раньше. Работает для сообщений, которые успели загрузиться в приложение."))
 +    entries.append(.toggle(id: id.count, section: .ghost, settingName: .noMediaMode, value: SGSimpleSettings.shared.noMediaMode, text: "Без медиа (запрет фото, видео и историй)", enabled: true))
 +    entries.append(.toggle(id: id.count, section: .ghost, settingName: .readOnlyMode, value: SGSimpleSettings.shared.readOnlyMode, text: "Только чтение (никому не писать)", enabled: true))
 +    entries.append(.notice(id: id.count, section: .ghost, text: "«Без медиа» не даёт отправить фото, видео, файлы, голосовые, стикеры и выложить историю — текст отправляется. «Только чтение» блокирует любую отправку."))
@@ -277,6 +277,18 @@ index 11184136..eee60d90 100644
    }
  }
 \ No newline at end of file
+diff --git a/submodules/TelegramCore/Sources/Account/AccountManager.swift b/submodules/TelegramCore/Sources/Account/AccountManager.swift
+index c88796e5..5f9f2707 100644
+--- a/submodules/TelegramCore/Sources/Account/AccountManager.swift
++++ b/submodules/TelegramCore/Sources/Account/AccountManager.swift
+@@ -140,6 +140,7 @@ private var declaredEncodables: Void = {
+     declareEncodable(SourceReferenceMessageAttribute.self, f: { SourceReferenceMessageAttribute(decoder: $0) })
+     declareEncodable(SourceAuthorInfoMessageAttribute.self, f: { SourceAuthorInfoMessageAttribute(decoder: $0) })
+     declareEncodable(EditedMessageAttribute.self, f: { EditedMessageAttribute(decoder: $0) })
++    declareEncodable(SGDeletedMessageAttribute.self, f: { SGDeletedMessageAttribute(decoder: $0) })
+     declareEncodable(ReplyMarkupMessageAttribute.self, f: { ReplyMarkupMessageAttribute(decoder: $0) })
+     declareEncodable(OutgoingChatContextResultMessageAttribute.self, f: { OutgoingChatContextResultMessageAttribute(decoder: $0) })
+     declareEncodable(HttpReferenceMediaResource.self, f: { HttpReferenceMediaResource(decoder: $0) })
 diff --git a/submodules/TelegramCore/Sources/PendingMessages/EnqueueMessage.swift b/submodules/TelegramCore/Sources/PendingMessages/EnqueueMessage.swift
 index 62f277d5..c588a870 100644
 --- a/submodules/TelegramCore/Sources/PendingMessages/EnqueueMessage.swift
@@ -323,7 +335,7 @@ index 62f277d5..c588a870 100644
       * If it is a support account, mark messages as read here as they are
       * not marked as read when chat is opened.
 diff --git a/submodules/TelegramCore/Sources/State/AccountStateManagementUtils.swift b/submodules/TelegramCore/Sources/State/AccountStateManagementUtils.swift
-index 3d99e59d..e2e8234b 100644
+index 3d99e59d..286c51bc 100644
 --- a/submodules/TelegramCore/Sources/State/AccountStateManagementUtils.swift
 +++ b/submodules/TelegramCore/Sources/State/AccountStateManagementUtils.swift
 @@ -4,6 +4,7 @@ import SwiftSignalKit
@@ -374,11 +386,10 @@ index 3d99e59d..e2e8234b 100644
 +
 +// MARK: Silent Gram — сохранение удалённых сообщений и истории правок
 +
-+private let sgDeletedMark = "\n\n🗑 Удалено"
 +private let sgEditMark = "\n\n✏️ Было: "
 +
-+private func sgStoreMessage(_ m: Message, text: String) -> StoreMessage {
-+    return StoreMessage(id: m.id, customStableId: nil, globallyUniqueId: m.globallyUniqueId, groupingKey: m.groupingKey, threadId: m.threadId, timestamp: m.timestamp, flags: StoreMessageFlags(m.flags), tags: m.tags, globalTags: m.globalTags, localTags: m.localTags, forwardInfo: m.forwardInfo.flatMap(StoreMessageForwardInfo.init), authorId: m.author?.id, text: text, attributes: m.attributes, media: m.media)
++private func sgStoreMessage(_ m: Message, text: String, attributes: [MessageAttribute]) -> StoreMessage {
++    return StoreMessage(id: m.id, customStableId: nil, globallyUniqueId: m.globallyUniqueId, groupingKey: m.groupingKey, threadId: m.threadId, timestamp: m.timestamp, flags: StoreMessageFlags(m.flags), tags: m.tags, globalTags: m.globalTags, localTags: m.localTags, forwardInfo: m.forwardInfo.flatMap(StoreMessageForwardInfo.init), authorId: m.author?.id, text: text, attributes: attributes, media: m.media)
 +}
 +
 +private func sgIsEphemeral(_ m: Message) -> Bool {
@@ -405,12 +416,13 @@ index 3d99e59d..e2e8234b 100644
 +            return false
 +        }
 +    }
++    let now = Int32(CFAbsoluteTimeGetCurrent() + NSTimeIntervalSince1970)
 +    for id in ids {
 +        transaction.updateMessage(id, update: { current in
-+            if current.text.hasSuffix(sgDeletedMark) {
++            if current.sgIsDeleted {
 +                return .skip
 +            }
-+            return .update(sgStoreMessage(current, text: current.text + sgDeletedMark))
++            return .update(sgStoreMessage(current, text: current.text, attributes: current.attributes + [SGDeletedMessageAttribute(date: now)]))
 +        })
 +    }
 +    return true
@@ -508,6 +520,37 @@ index b2e65895..6a8afe59 100644
      if peerId.namespace == Namespaces.Peer.SecretChat {
          // Decide whether a request is needed before looking the peer up: inputSecretChat goes
          // through loadedPeerWithId, which never emits when the peer row is missing and fails
+diff --git a/submodules/TelegramCore/Sources/SyncCore/SyncCore_SGDeletedMessageAttribute.swift b/submodules/TelegramCore/Sources/SyncCore/SyncCore_SGDeletedMessageAttribute.swift
+new file mode 100644
+index 00000000..8480d030
+--- /dev/null
++++ b/submodules/TelegramCore/Sources/SyncCore/SyncCore_SGDeletedMessageAttribute.swift
+@@ -0,0 +1,25 @@
++import Foundation
++import Postbox
++
++// MARK: Silent Gram — пометка «сообщение удалено собеседником»
++public class SGDeletedMessageAttribute: MessageAttribute {
++    public let date: Int32
++
++    public init(date: Int32) {
++        self.date = date
++    }
++
++    required public init(decoder: PostboxDecoder) {
++        self.date = decoder.decodeInt32ForKey("d", orElse: 0)
++    }
++
++    public func encode(_ encoder: PostboxEncoder) {
++        encoder.encodeInt32(self.date, forKey: "d")
++    }
++}
++
++public extension Message {
++    var sgIsDeleted: Bool {
++        return self.attributes.contains(where: { $0 is SGDeletedMessageAttribute })
++    }
++}
 diff --git a/submodules/TelegramCore/Sources/TelegramEngine/Messages/Stories.swift b/submodules/TelegramCore/Sources/TelegramEngine/Messages/Stories.swift
 index 9878c79e..5c0a7aed 100644
 --- a/submodules/TelegramCore/Sources/TelegramEngine/Messages/Stories.swift
@@ -531,3 +574,19 @@ index 9878c79e..5c0a7aed 100644
      return postbox.transaction { transaction -> (Peer, Peer?)? in
          if let peer = transaction.getPeer(toPeerId) {
              if let forwardInfo = forwardInfo {
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/StringForMessageTimestampStatus.swift b/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/StringForMessageTimestampStatus.swift
+index ad79b915..553005e2 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/StringForMessageTimestampStatus.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/StringForMessageTimestampStatus.swift
+@@ -182,6 +182,11 @@ public func stringForMessageTimestampStatus(
+         dateText = strings.Message_ImportedDateFormat(dateStringForDay(strings: strings, dateTimeFormat: dateTimeFormat, timestamp: forwardInfo.date), stringForMessageTimestamp(timestamp: forwardInfo.date, dateTimeFormat: dateTimeFormat), dateText).string
+     }
+     
++    // MARK: Silent Gram — корзинка у удалённых сообщений
++    if message.attributes.contains(where: { $0 is SGDeletedMessageAttribute }) {
++        dateText = "🗑 " + dateText
++    }
++
+     var authorTitle: String?
+     if let author = message.author, case .user = author {
+         if let peer = message.peers[message.id.peerId] as? TelegramChannel, case .broadcast = peer.info {
