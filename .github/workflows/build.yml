@@ -36,6 +36,7 @@ jobs:
 
       - name: Build
         run: |
+          set -o pipefail
           xcodebuild \
             -project SilentGram.xcodeproj \
             -scheme SilentGram \
@@ -44,8 +45,12 @@ jobs:
             -destination 'generic/platform=iOS' \
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
-            build | tee build.log | grep -E "error:|warning: unre|BUILD" || true
-          test -d build/Build/Products/Release-iphoneos/SilentGram.app
+            build 2>&1 | tee build.log | grep -E "error:|\*\* BUILD" || true
+          if [ ! -f build/Build/Products/Release-iphoneos/SilentGram.app/SilentGram ]; then
+            echo "::error::Сборка не удалась. Ошибки:"
+            grep -E "error:" build.log | sort -u | head -40
+            exit 1
+          fi
 
       - name: Package IPA
         run: |
@@ -59,7 +64,7 @@ jobs:
           path: SilentGram.ipa
 
       - uses: actions/upload-artifact@v4
-        if: failure()
+        if: always()
         with:
           name: build-log
           path: build.log
