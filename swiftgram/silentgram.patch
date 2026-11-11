@@ -1,5 +1,5 @@
 diff --git a/Swiftgram/SGSettingsUI/Sources/SGSettingsController.swift b/Swiftgram/SGSettingsUI/Sources/SGSettingsController.swift
-index b5b41d9f..3e2724e9 100644
+index b5b41d9f..738f1555 100644
 --- a/Swiftgram/SGSettingsUI/Sources/SGSettingsController.swift
 +++ b/Swiftgram/SGSettingsUI/Sources/SGSettingsController.swift
 @@ -27,6 +27,7 @@ import UndoUI
@@ -10,7 +10,7 @@ index b5b41d9f..3e2724e9 100644
      case content
      case tabs
      case folders
-@@ -60,6 +61,11 @@ private enum SGBoolSetting: String {
+@@ -60,6 +61,13 @@ private enum SGBoolSetting: String {
      case rememberLastFolder
      case sendLargePhotos
      case storyStealthMode
@@ -19,10 +19,12 @@ index b5b41d9f..3e2724e9 100644
 +    case ghostHideTyping
 +    case saveDeletedMessages
 +    case saveEditHistory
++    case noMediaMode
++    case readOnlyMode
      case disableSwipeToRecordStory
      case disableDeleteChatSwipeOption
      case quickTranslateButton
-@@ -163,6 +169,16 @@ private func SGControllerEntries(presentationData: PresentationData, callListSet
+@@ -163,6 +171,19 @@ private func SGControllerEntries(presentationData: PresentationData, callListSet
          id.increment(3)
      }
      
@@ -35,11 +37,14 @@ index b5b41d9f..3e2724e9 100644
 +    entries.append(.toggle(id: id.count, section: .ghost, settingName: .saveDeletedMessages, value: SGSimpleSettings.shared.saveDeletedMessages, text: "Сохранять удалённые сообщения", enabled: true))
 +    entries.append(.toggle(id: id.count, section: .ghost, settingName: .saveEditHistory, value: SGSimpleSettings.shared.saveEditHistory, text: "Сохранять историю правок", enabled: true))
 +    entries.append(.notice(id: id.count, section: .ghost, text: "Удалённые сообщения остаются в чате с пометкой «🗑 Удалено», у изменённых внизу видно, что было раньше. Работает для сообщений, которые успели загрузиться в приложение."))
++    entries.append(.toggle(id: id.count, section: .ghost, settingName: .noMediaMode, value: SGSimpleSettings.shared.noMediaMode, text: "Без медиа (запрет фото, видео и историй)", enabled: true))
++    entries.append(.toggle(id: id.count, section: .ghost, settingName: .readOnlyMode, value: SGSimpleSettings.shared.readOnlyMode, text: "Только чтение (никому не писать)", enabled: true))
++    entries.append(.notice(id: id.count, section: .ghost, text: "«Без медиа» не даёт отправить фото, видео, файлы, голосовые, стикеры и выложить историю — текст отправляется. «Только чтение» блокирует любую отправку."))
 +
      if appConfiguration.sgWebSettings.global.canEditSettings {
          entries.append(.disclosure(id: id.count, section: .content, link: .contentSettings, text: i18n("Settings.ContentSettings", lang)))
      } else {
-@@ -415,6 +431,16 @@ public func sgSettingsController(context: AccountContext/*, focusOnItemTag: Int?
+@@ -415,6 +436,20 @@ public func sgSettingsController(context: AccountContext/*, focusOnItemTag: Int?
              SGSimpleSettings.shared.sendLargePhotos = value
          case .storyStealthMode:
              SGSimpleSettings.shared.storyStealthMode = value
@@ -53,14 +58,18 @@ index b5b41d9f..3e2724e9 100644
 +            SGSimpleSettings.shared.saveDeletedMessages = value
 +        case .saveEditHistory:
 +            SGSimpleSettings.shared.saveEditHistory = value
++        case .noMediaMode:
++            SGSimpleSettings.shared.noMediaMode = value
++        case .readOnlyMode:
++            SGSimpleSettings.shared.readOnlyMode = value
          case .disableSwipeToRecordStory:
              SGSimpleSettings.shared.disableSwipeToRecordStory = value
          case .quickTranslateButton:
 diff --git a/Swiftgram/SGSimpleSettings/Sources/SimpleSettings.swift b/Swiftgram/SGSimpleSettings/Sources/SimpleSettings.swift
-index 6dfc4ec9..23c83d7b 100644
+index 6dfc4ec9..d98468b9 100644
 --- a/Swiftgram/SGSimpleSettings/Sources/SimpleSettings.swift
 +++ b/Swiftgram/SGSimpleSettings/Sources/SimpleSettings.swift
-@@ -106,6 +106,11 @@ public class SGSimpleSettings {
+@@ -106,6 +106,13 @@ public class SGSimpleSettings {
          case sendLargePhotos
          case outgoingPhotoQuality
          case storyStealthMode
@@ -69,10 +78,12 @@ index 6dfc4ec9..23c83d7b 100644
 +        case ghostHideTyping
 +        case saveDeletedMessages
 +        case saveEditHistory
++        case noMediaMode
++        case readOnlyMode
          case canUseStealthMode
          case disableSwipeToRecordStory
          case quickTranslateButton
-@@ -268,6 +273,11 @@ public class SGSimpleSettings {
+@@ -268,6 +275,13 @@ public class SGSimpleSettings {
          Keys.sendLargePhotos.rawValue: false,
          Keys.outgoingPhotoQuality.rawValue: 70,
          Keys.storyStealthMode.rawValue: false,
@@ -81,10 +92,12 @@ index 6dfc4ec9..23c83d7b 100644
 +        Keys.ghostHideTyping.rawValue: true,
 +        Keys.saveDeletedMessages.rawValue: true,
 +        Keys.saveEditHistory.rawValue: true,
++        Keys.noMediaMode.rawValue: false,
++        Keys.readOnlyMode.rawValue: false,
          Keys.canUseStealthMode.rawValue: true,
          Keys.disableSwipeToRecordStory.rawValue: false,
          Keys.quickTranslateButton.rawValue: false,
-@@ -394,6 +404,22 @@ public class SGSimpleSettings {
+@@ -394,6 +408,28 @@ public class SGSimpleSettings {
      
      @UserDefault(key: Keys.storyStealthMode.rawValue)
      public var storyStealthMode: Bool
@@ -104,9 +117,60 @@ index 6dfc4ec9..23c83d7b 100644
 +
 +    @UserDefault(key: Keys.saveEditHistory.rawValue)
 +    public var saveEditHistory: Bool
++
++    @UserDefault(key: Keys.noMediaMode.rawValue)
++    public var noMediaMode: Bool
++
++    @UserDefault(key: Keys.readOnlyMode.rawValue)
++    public var readOnlyMode: Bool
      
      @UserDefault(key: Keys.canUseStealthMode.rawValue)
      public var canUseStealthMode: Bool    
+diff --git a/submodules/TelegramCore/Sources/PendingMessages/EnqueueMessage.swift b/submodules/TelegramCore/Sources/PendingMessages/EnqueueMessage.swift
+index 62f277d5..c588a870 100644
+--- a/submodules/TelegramCore/Sources/PendingMessages/EnqueueMessage.swift
++++ b/submodules/TelegramCore/Sources/PendingMessages/EnqueueMessage.swift
+@@ -3,6 +3,7 @@ import Postbox
+ internal import TelegramApi
+ import SwiftSignalKit
+ import Emoji
++import SGSimpleSettings
+ 
+ public enum EnqueueMessageGrouping {
+     case none
+@@ -863,6 +864,32 @@ public func resendMessages(account: Account, messageIds: [MessageId]) -> Signal<
+ }
+ 
+ func enqueueMessages(transaction: Transaction, account: Account, peerId: PeerId, messages: [(Bool, EnqueueMessage)], disableAutoremove: Bool = false, transformGroupingKeysWithPeerId: Bool = false) -> [MessageId?] {
++    // MARK: Silent Gram — режимы «Только чтение» и «Без медиа»
++    let sgBlocked: [Bool] = messages.map { item in
++        if SGSimpleSettings.shared.readOnlyMode {
++            return true
++        }
++        if SGSimpleSettings.shared.noMediaMode {
++            switch item.1 {
++            case let .message(_, _, _, mediaReference, _, _, _, _, _, _):
++                return mediaReference != nil
++            case let .forward(source, _, _, _, _):
++                return !(transaction.getMessage(source)?.media.isEmpty ?? true)
++            }
++        }
++        return false
++    }
++    if sgBlocked.contains(true) {
++        let allowed = zip(messages, sgBlocked).filter { !$0.1 }.map { $0.0 }
++        let allowedIds = allowed.isEmpty ? [] : enqueueMessages(transaction: transaction, account: account, peerId: peerId, messages: allowed, disableAutoremove: disableAutoremove, transformGroupingKeysWithPeerId: transformGroupingKeysWithPeerId)
++        var iterator = allowedIds.makeIterator()
++        return sgBlocked.map { blocked -> MessageId? in
++            if blocked {
++                return nil
++            }
++            return iterator.next() ?? nil
++        }
++    }
+     /**
+      * If it is a support account, mark messages as read here as they are
+      * not marked as read when chat is opened.
 diff --git a/submodules/TelegramCore/Sources/State/AccountStateManagementUtils.swift b/submodules/TelegramCore/Sources/State/AccountStateManagementUtils.swift
 index 3d99e59d..e2e8234b 100644
 --- a/submodules/TelegramCore/Sources/State/AccountStateManagementUtils.swift
@@ -293,3 +357,26 @@ index b2e65895..6a8afe59 100644
      if peerId.namespace == Namespaces.Peer.SecretChat {
          // Decide whether a request is needed before looking the peer up: inputSecretChat goes
          // through loadedPeerWithId, which never emits when the peer row is missing and fails
+diff --git a/submodules/TelegramCore/Sources/TelegramEngine/Messages/Stories.swift b/submodules/TelegramCore/Sources/TelegramEngine/Messages/Stories.swift
+index 9878c79e..5c0a7aed 100644
+--- a/submodules/TelegramCore/Sources/TelegramEngine/Messages/Stories.swift
++++ b/submodules/TelegramCore/Sources/TelegramEngine/Messages/Stories.swift
+@@ -2,6 +2,7 @@ import Foundation
+ import SwiftSignalKit
+ import Postbox
+ internal import TelegramApi
++import SGSimpleSettings
+ 
+ public enum EngineStoryInputMedia {
+     case image(dimensions: PixelDimensions, data: Data, stickers: [TelegramMediaFile])
+@@ -1330,6 +1331,10 @@ func _internal_uploadStoryImpl(
+     randomId: Int64,
+     forwardInfo: Stories.PendingForwardInfo?
+ ) -> Signal<PendingStoryUploadResult, NoError> {
++    // MARK: Silent Gram — запрет историй
++    if SGSimpleSettings.shared.noMediaMode || SGSimpleSettings.shared.readOnlyMode {
++        return .single(.completed(nil))
++    }
+     return postbox.transaction { transaction -> (Peer, Peer?)? in
+         if let peer = transaction.getPeer(toPeerId) {
+             if let forwardInfo = forwardInfo {
