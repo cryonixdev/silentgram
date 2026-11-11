@@ -30,7 +30,7 @@ struct MessageItem: Identifiable, Equatable, Codable {
     var key: String { "\(chatId):\(id)" }
 }
 
-enum Content {
+enum MessageContent {
     /// Текст сообщения и id фото (если есть).
     static func parse(_ c: JSON?) -> (text: String, photo: Int?) {
         guard let c else { return ("", nil) }

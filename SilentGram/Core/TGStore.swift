@@ -200,7 +200,7 @@ final class TGStore: ObservableObject {
 
     private func applyLastMessage(_ id: Int64, _ m: JSON?) {
         guard let m else { return }
-        chats[id]?.lastText = Content.preview(m.obj("content"))
+        chats[id]?.lastText = MessageContent.preview(m.obj("content"))
         chats[id]?.lastDate = m.int("date") ?? 0
         chats[id]?.lastOutgoing = m.bool("is_outgoing")
         chats[id]?.lastMessageId = m.int64("id") ?? 0
@@ -215,7 +215,7 @@ final class TGStore: ObservableObject {
     // MARK: - Сообщения
 
     func makeMessage(_ m: JSON) -> MessageItem {
-        let content = Content.parse(m.obj("content"))
+        let content = MessageContent.parse(m.obj("content"))
         var sender: String?
         if let s = m.obj("sender_id") {
             if let uid = s.int64("user_id") { sender = users[uid] }
@@ -248,7 +248,7 @@ final class TGStore: ObservableObject {
     private func onContentChanged(_ u: JSON) {
         guard let c = u.int64("chat_id"), let id = u.int64("message_id") else { return }
         let key = "\(c):\(id)"
-        let new = Content.parse(u.obj("new_content"))
+        let new = MessageContent.parse(u.obj("new_content"))
         let idx = messages[c]?.firstIndex(where: { $0.id == id })
         let old = idx.map { messages[c]![$0].text } ?? archive.cached(key)?.text
         if ghost.saveEdits, let old, old != new.text, !old.isEmpty {
