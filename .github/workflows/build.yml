@@ -48,7 +48,9 @@ jobs:
             build 2>&1 | tee build.log | grep -E "error:|\*\* BUILD" || true
           if [ ! -f build/Build/Products/Release-iphoneos/SilentGram.app/SilentGram ]; then
             echo "::error::Сборка не удалась. Ошибки:"
-            grep -E "error:" build.log | sort -u | head -40
+            grep -iE "error" build.log | sort -u | head -40
+            echo "----- последние строки лога -----"
+            tail -60 build.log
             exit 1
           fi
 
