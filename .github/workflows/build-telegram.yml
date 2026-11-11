@@ -79,13 +79,15 @@ jobs:
         run: |
           set -o pipefail
           cd /Users/Shared/telegram-ios
-          python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
+          # Профили Swiftgram просрочены — переподписываем с новым сроком
+          python3 $GITHUB_WORKSPACE/swiftgram/refresh_profiles.py /Users/Shared/telegram-ios /Users/Shared/codesigning
+          python3 build-system/Make/ImportCertificates.py --path /Users/Shared/codesigning/certs
           python3 -u build-system/Make/Make.py \
             --overrideXcodeVersion \
             --bazelUserRoot="/private/var/tmp/_bazel_silentgram" \
             build \
             --configurationPath=/Users/Shared/silentgram-configuration.json \
-            --codesigningInformationPath=build-system/fake-codesigning \
+            --codesigningInformationPath=/Users/Shared/codesigning \
             --configuration=release_arm64 \
             --buildNumber=1 2>&1 | tee $GITHUB_WORKSPACE/build.log
 
@@ -101,11 +103,12 @@ jobs:
       - name: Package IPA
         run: |
           cd /Users/Shared/telegram-ios
-          IPA=$(ls bazel-out/applebin_ios-ios_arm*-opt-ST-*/bin/Telegram/Telegram.ipa | head -1)
+          IPA=$(ls bazel-out/*/bin/Telegram/*.ipa | grep -v -i watch | head -1)
           echo "IPA: $IPA"
           rm -rf /tmp/pkg && mkdir /tmp/pkg && cd /tmp/pkg
           unzip -q "$OLDPWD/$IPA"
-          APP=Payload/Telegram.app
+          APP=$(ls -d Payload/*.app | head -1)
+          echo "APP: $APP"
           # Бесплатный Apple ID не потянет расширения — убираем их
           rm -rf $APP/PlugIns $APP/Watch $APP/Extensions
           plutil -replace CFBundleDisplayName -string "Silent Gram" $APP/Info.plist
